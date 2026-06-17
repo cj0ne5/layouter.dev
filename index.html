@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layout Builder</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="topbar">
+  <h1>Layout Builder</h1>
+  <div id="undo-group">
+    <button id="undo-btn" onclick="history.back()" title="Undo">&#8592; Undo</button>
+    <button id="redo-btn" onclick="history.forward()" title="Redo">Redo &#8594;</button>
+    <span id="undo-hint">browser &#8592; &#8594; also work</span>
+  </div>
+  <button onclick="clearLayout()">Clear</button>
+  <select id="template-select" onchange="loadTemplate(this)">
+    <option value="">— Starter templates —</option>
+  </select>
+  <button id="copy-link-btn" onclick="copyShareLink()">Copy Link</button>
+  <button onclick="exportHTML()">Export HTML/CSS</button>
+</div>
+
+<div id="main">
+
+  <!-- ELEMENT BANK -->
+  <div id="bank">
+    <h2>Structure</h2>
+    <div class="bank-item" draggable="true" data-type="header">header</div>
+    <div class="bank-item" draggable="true" data-type="nav">nav</div>
+    <div class="bank-item" draggable="true" data-type="section">section</div>
+    <div class="bank-item" draggable="true" data-type="footer">footer</div>
+
+    <h2>Layout</h2>
+    <div class="bank-item" draggable="true" data-type="div">div</div>
+    <div class="bank-item" draggable="true" data-type="article">article</div>
+
+    <h2>Content</h2>
+    <div class="bank-item" draggable="true" data-type="h1">h1</div>
+    <div class="bank-item" draggable="true" data-type="h2">h2</div>
+    <div class="bank-item" draggable="true" data-type="h3">h3</div>
+    <div class="bank-item" draggable="true" data-type="p">p</div>
+    <div class="bank-item" draggable="true" data-type="img">img</div>
+    <div class="bank-item" draggable="true" data-type="input">input</div>
+    <div class="bank-item" draggable="true" data-type="button">button</div>
+    <div class="bank-item" draggable="true" data-type="table">table</div>
+
+    <h2>Patterns</h2>
+    <p class="bank-hint">Pre-built arrangements of real HTML elements — drag one in to see how it's structured.</p>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-hero">Hero</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-cta">Call to Action</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-cards">Cards</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-search">Search Bar</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-form">Form</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-banner">Banner</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-breadcrumbs">Breadcrumbs</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-pagination">Pagination</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-progress">Progress Indicator</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-tags">Tags</div>
+    <h3>Menu Types</h3>
+    <div class="bank-item bank-pattern" draggable="true" data-type="nav">Horizontal Menu</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-hamburger">Hamburger Menu</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-dropdown">Dropdown Menu</div>
+    <div class="bank-item bank-pattern" draggable="true" data-type="pattern-megamenu">Megamenu</div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <div id="canvas-inner">
+      <div id="dom-tree-panel"></div>
+      <div id="canvas-container">
+        <canvas id="wireframe-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROPERTIES PANEL -->
+  <div id="props">
+    <h2>Properties</h2>
+    <div id="no-selection">Click an element on the canvas to edit its properties.</div>
+    <div id="prop-fields" style="display:none"></div>
+    <div id="semantic-warnings"></div>
+  </div>
+
+</div>
+
+<div id="tooltip"></div>
+
+<div id="export-modal" onclick="closeExportModal(event)">
+  <div id="export-box">
+    <div id="export-header">
+      <span>layout-template.html</span>
+      <button id="export-copy-btn" onclick="copyExport()">Copy</button>
+      <button id="export-close-btn" onclick="closeExportModal()">Close</button>
+    </div>
+    <pre id="export-code"></pre>
+  </div>
+</div>
+
+<script src="js/constants.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/semantics.js"></script>
+<script src="js/state.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/domtree.js"></script>
+<script src="js/props.js"></script>
+<script src="js/export.js"></script>
+<script src="js/events.js"></script>
+<script src="js/render.js"></script>
+<script src="js/history.js"></script>
+<script src="js/init.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.min.js" onload="roughLoaded=true; tryInit()"></script>
+</body>
+</html>
