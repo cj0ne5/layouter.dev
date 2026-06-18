@@ -1,6 +1,13 @@
+function collectUsedTypes(node, out = new Set()) {
+  out.add(node.type);
+  for (const c of node.children || []) collectUsedTypes(c, out);
+  return out;
+}
+
 function exportHTML() {
   const clean = JSON.parse(JSON.stringify(pageTree));
   stripInternal(clean);
+  const used = collectUsedTypes(clean);
 
   const bodyWidth = clean.width || 900;
   const bodyWidthCSS = bodyWidth === '100%' ? '100%' : `${bodyWidth}px`;
@@ -55,7 +62,7 @@ function exportHTML() {
     }
 
     if (node.type === 'img') {
-      const aspectRatio = { portrait: '3 / 4', square: '1', landscape: '4 / 3' }[node.aspect] || '4 / 3';
+      const aspectRatio = { portrait: '3 / 4', square: '1', landscape: '4 / 3', banner: '8 / 3' }[node.aspect] || '4 / 3';
       if (node.display === 'inline') {
         const sizeW = { icon: '10%', sm: '30%', md: '45%', lg: '65%' };
         decls.push(`width: ${sizeW[node.size] || '45%'}`);
@@ -137,25 +144,26 @@ function exportHTML() {
   const bodyHTML = nodeToHTML(clean);
 
   // --- Assemble CSS ---
-  const globalCSS = [
+  const globalRules = [
     `* { box-sizing: border-box; margin: 0; padding: 0; }`,
     `body { font-family: system-ui, sans-serif; max-width: ${bodyWidthCSS}; margin: 0 auto; }`,
-    `img { display: block; width: 100%; height: auto; background: #ddd; }`,
-    `h1 { font-size: 2rem; margin-bottom: 0.5rem; }`,
-    `h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }`,
-    `h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }`,
-    `p { color: #555; line-height: 1.6; margin-bottom: 0.5rem; }`,
-    `button { padding: 0.5rem 1.5rem; border: none; border-radius: 5px; background: #333; color: #fff; cursor: pointer; }`,
-    `nav { display: flex; gap: 1rem; }`,
-    `nav a { text-decoration: none; color: inherit; }`,
-    `article { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }`,
-    `input[type="text"] { padding: 0.4rem 0.75rem; border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; width: 100%; }`,
-    `label { display: flex; align-items: center; gap: 0.5rem; }`,
-    `table { width: 100%; border-collapse: collapse; }`,
-    `th, td { padding: 0.5rem 1rem; border: 1px solid #ddd; text-align: left; }`,
-    `th { background: #f5f5f5; font-weight: 600; }`,
-    `.logo { font-weight: bold; font-size: 1.2rem; text-decoration: none; color: inherit; }`,
-  ].join('\n');
+    used.has('img')     && `img { display: block; width: 100%; background: #ddd; }`,
+    used.has('h1')      && `h1 { font-size: 2rem; margin-bottom: 0.5rem; }`,
+    used.has('h2')      && `h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }`,
+    used.has('h3')      && `h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }`,
+    used.has('p')       && `p { color: #555; line-height: 1.6; margin-bottom: 0.5rem; }`,
+    used.has('button')  && `button { padding: 0.5rem 1.5rem; border: none; border-radius: 5px; background: #333; color: #fff; cursor: pointer; }`,
+    used.has('nav')     && `nav { display: flex; gap: 1rem; }`,
+    used.has('nav')     && `nav a { text-decoration: none; color: inherit; }`,
+    used.has('article') && `article { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }`,
+    used.has('input')   && `input[type="text"] { padding: 0.4rem 0.75rem; border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; width: 100%; }`,
+    used.has('input')   && `label { display: flex; align-items: center; gap: 0.5rem; }`,
+    used.has('table')   && `table { width: 100%; border-collapse: collapse; }`,
+    used.has('table')   && `th, td { padding: 0.5rem 1rem; border: 1px solid #ddd; text-align: left; }`,
+    used.has('table')   && `th { background: #f5f5f5; font-weight: 600; }`,
+    used.has('logo')    && `.logo { font-weight: bold; font-size: 1.2rem; text-decoration: none; color: inherit; }`,
+  ].filter(Boolean);
+  const globalCSS = globalRules.join('\n');
 
   const layoutCSS = generatedRules.length
     ? '\n/* Layout */\n' + generatedRules.map(([sel, decls]) =>
@@ -165,6 +173,9 @@ function exportHTML() {
 
   const fullCSS = (globalCSS + layoutCSS)
     .split('\n').map(l => `    ${l}`).join('\n');
+
+  const includeValidator = document.getElementById('export-validator')?.checked ?? true;
+  const validatorScript = includeValidator ? `\n  <script>\n  (function() {\n    var s = document.createElement("script");\n    s.src = "https://cdn.jsdelivr.net/gh/gracehoppercenter/validate@1.0.5/validate.js";\n    s.async = false;\n    document.head.appendChild(s);\n  })();\n  <\/script>` : '';
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -177,7 +188,7 @@ ${fullCSS}
   </style>
 </head>
 <body>
-${bodyHTML}
+${bodyHTML}${validatorScript}
 </body>
 </html>`;
 

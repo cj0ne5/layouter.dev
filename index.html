@@ -107,6 +107,9 @@
       <button id="export-copy-btn" onclick="copyExport()">Copy</button>
       <button id="export-close-btn" onclick="closeExportModal()">Close</button>
     </div>
+    <div id="export-options">
+      <label><input type="checkbox" id="export-validator" checked onchange="exportHTML()"> Include HTML validator</label>
+    </div>
     <pre id="export-code"></pre>
   </div>
 </div>

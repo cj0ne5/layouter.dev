@@ -26,6 +26,9 @@ The browser parses HTML into the DOM. To help students learn how the visual page
 ### Export HTML/CSS
 Generates clean, class-based HTML and CSS from your layout — ready to paste into a real project.
 
+The export dialog includes an **Include HTML validator** checkbox (on by default). When checked, it embeds a button in the footer
+that will send your code to the [W3C Validation Service](https://validator.w3.org/) and shows the feedback in the page. For more about this, see [GHC HTML validator](https://github.com/gracehoppercenter/validate/tree/main).
+
 ### Shareable links
 The entire design is hashed and encoded in the URL, so copying the link to share your design. This also means that you can use the browser's back/forward buttons for undo/redo.
 
