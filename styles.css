@@ -523,3 +523,98 @@ body {
   display: none;
   z-index: 999;
 }
+
+#site-footer {
+  background: #fff;
+  border-top: 1px solid #ddd;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-links a {
+  color: #555;
+  text-decoration: none;
+}
+
+.footer-links a:hover { text-decoration: underline; }
+
+.footer-sep { color: #ccc; }
+
+/* ABOUT MODAL */
+#about-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+#about-box {
+  background: #fff;
+  border-radius: 10px;
+  width: min(640px, 92vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+
+#about-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+#about-header span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  margin-right: auto;
+}
+
+#about-close-btn {
+  padding: 5px 12px;
+  background: transparent;
+  color: #888;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#about-close-btn:hover { color: #333; border-color: #999; }
+
+#about-content {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 28px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #333;
+}
+
+#about-content h1 { font-size: 20px; margin-bottom: 12px; }
+#about-content h2 { font-size: 15px; font-weight: 600; margin: 20px 0 6px; color: #111; }
+#about-content h3 { font-size: 13px; font-weight: 600; margin: 14px 0 4px; color: #444; }
+#about-content p { margin-bottom: 10px; }
+#about-content ul { padding-left: 20px; margin-bottom: 10px; }
+#about-content li { margin-bottom: 3px; }
+#about-content a { color: #3a7bd5; text-decoration: none; }
+#about-content a:hover { text-decoration: underline; }
+#about-content strong { font-weight: 600; }

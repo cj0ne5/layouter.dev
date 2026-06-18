@@ -267,8 +267,11 @@ function makeNode(type) {
 
     // Patterns — pre-built trees of real HTML elements
     'pattern-hero': {
-      type: 'section', layout: 'block', padding: '2rem',
-      children: [{ type: 'h1' }, { type: 'p', text: 'md' }, { type: 'button' }]
+      type: 'section', layout: 'block', padding: '0',
+      children: [
+        { type: 'img', size: 'lg', aspect: 'banner' },
+        { type: 'div', layout: 'block', padding: '2rem', children: [{ type: 'h1' }, { type: 'p', text: 'md' }, { type: 'button' }] }
+      ]
     },
     'pattern-cta': {
       type: 'section', layout: 'block', padding: '2rem',

@@ -20,14 +20,12 @@ function stripInternal(node) {
 }
 
 function encodeDesign() {
-  const json = JSON.stringify(stripInternal(pageTree));
-  return btoa(unescape(encodeURIComponent(json)));
+  return btoa(JSON.stringify(stripInternal(pageTree)));
 }
 
 function decodeDesign(encoded) {
   try {
-    const json = decodeURIComponent(escape(atob(encoded)));
-    return JSON.parse(json);
+    return JSON.parse(atob(encoded));
   } catch (_) {
     return null;
   }

@@ -36,7 +36,7 @@ function layoutTree(node, x, y, w) {
     if (floatImg) {
       const fracs = { icon: 0.12, sm: 0.28, md: 0.38, lg: 0.52 };
       const imgW = Math.round(innerW * (fracs[floatImg.size] || 0.38));
-      const imgH = Math.round(imgW * ({ portrait: 1.4, square: 1, landscape: 0.55 }[floatImg.aspect] || 0.55));
+      const imgH = Math.round(imgW * ({ portrait: 1.4, square: 1, landscape: 0.55, banner: 0.38 }[floatImg.aspect] || 0.55));
       floatImg._w = imgW; floatImg._h = imgH; floatImg._y = y + pad;
       floatImg._x = floatImg.float === 'left' ? innerX : innerX + innerW - imgW;
       floatImg._floated = true;
@@ -58,7 +58,7 @@ function layoutTree(node, x, y, w) {
   }
 
   if (node.type === 'img') {
-    const aspectRatio = { portrait: 1.4, square: 1, landscape: 0.55 }[node.aspect] || 0.55;
+    const aspectRatio = { portrait: 1.4, square: 1, landscape: 0.55, banner: 0.38 }[node.aspect] || 0.55;
     if (node.display === 'inline') {
       const frac = { icon: 0.1, sm: 0.3, md: 0.45, lg: 0.65 }[node.size] || 0.45;
       node._w = Math.round(w * frac);
@@ -179,7 +179,7 @@ function layoutTree(node, x, y, w) {
           // Clamp _w as a safety net; alignment is expressed by where cx starts.
           child._w = Math.min(child._w, childW);
           child._x = cx;
-          child._h = Math.round(child._w * ({ portrait: 1.4, square: 1, landscape: 0.55 }[child.aspect] || 0.55));
+          child._h = Math.round(child._w * ({ portrait: 1.4, square: 1, landscape: 0.55, banner: 0.38 }[child.aspect] || 0.55));
         } else if (isHamburger) {
           child._w = 40; child._h = 40;
           child._x = cx; // slot is already 40px, so just pin to leading edge
@@ -206,7 +206,3 @@ function layoutTree(node, x, y, w) {
   }
 }
 
-function imgHeight(node, w) {
-  const ratio = { portrait: 1.4, square: 1, landscape: 0.55 }[node.aspect] || 0.55;
-  return Math.round(w * ratio);
-}

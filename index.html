@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Layout Builder</title>
+<title>Layouter.dev</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <div id="topbar">
-  <h1>Layout Builder</h1>
+  <h1>Layouter.dev</h1>
   <div id="undo-group">
     <button id="undo-btn" onclick="history.back()" title="Undo">&#8592; Undo</button>
     <button id="redo-btn" onclick="history.forward()" title="Redo">Redo &#8594;</button>
-    <span id="undo-hint">browser &#8592; &#8594; also work</span>
+  
   </div>
   <button onclick="clearLayout()">Clear</button>
   <select id="template-select" onchange="loadTemplate(this)">
@@ -21,6 +21,7 @@
   </select>
   <button id="copy-link-btn" onclick="copyShareLink()">Copy Link</button>
   <button onclick="exportHTML()">Export HTML/CSS</button>
+  <button onclick="openAboutModal()">About</button>
 </div>
 
 <div id="main">
@@ -86,6 +87,17 @@
 
 </div>
 
+<footer id="site-footer">
+  <span>❤️ Copying is an act of love. Please contribute, copy, and share.</span>
+  <span class="footer-links">
+    <a href="https://chrismjon.es" target="_blank" rel="noopener">chrismjon.es</a>
+    <span class="footer-sep">·</span>
+    <a href="https://github.com/cj0ne5/layouter.dev" target="_blank" rel="noopener">GitHub</a>
+    <span class="footer-sep">·</span>
+    <a href="LICENSE" target="_blank" rel="noopener">GPLv3</a>
+  </span>
+</footer>
+
 <div id="tooltip"></div>
 
 <div id="export-modal" onclick="closeExportModal(event)">
@@ -96,6 +108,16 @@
       <button id="export-close-btn" onclick="closeExportModal()">Close</button>
     </div>
     <pre id="export-code"></pre>
+  </div>
+</div>
+
+<div id="about-modal" onclick="closeAboutModal(event)">
+  <div id="about-box">
+    <div id="about-header">
+      <span>About</span>
+      <button id="about-close-btn" onclick="closeAboutModal()">Close</button>
+    </div>
+    <div id="about-content"></div>
   </div>
 </div>
 
@@ -110,6 +132,8 @@
 <script src="js/events.js"></script>
 <script src="js/render.js"></script>
 <script src="js/history.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
+<script src="js/about.js"></script>
 <script src="js/init.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.min.js" onload="roughLoaded=true; tryInit()"></script>
 </body>

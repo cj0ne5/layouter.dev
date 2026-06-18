@@ -23,14 +23,17 @@ const TEMPLATES = [
   },
 
   {
-    name: 'Landing Page',
+    name: 'Home Page',
     tree: {
       type: 'page', viewport: 1280, width: 1100,
       children: [
         { type: 'header', layout: 'flex', align: 'space-between', padding: '1rem', children: [{ type: 'img', size: 'icon', aspect: 'square' }, { type: 'nav' }] },
         {
-          type: 'section', layout: 'block', padding: '2rem',
-          children: [{ type: 'h1' }, { type: 'p', text: 'md' }, { type: 'button' }]
+          type: 'section', layout: 'block', padding: '0',
+          children: [
+            { type: 'img', size: 'lg', aspect: 'banner' },
+            { type: 'div', layout: 'block', padding: '2rem', children: [{ type: 'h1' }, { type: 'p', text: 'md' }, { type: 'button' }] }
+          ]
         },
         {
           type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr', gap: '1rem', padding: '2rem',

@@ -27,9 +27,7 @@ function exportHTML() {
       p: 'p', img: 'img', button: 'button',
       input: 'input', table: 'table', page: null,
     };
-    const tag = Object.prototype.hasOwnProperty.call(tagMap, node.type)
-      ? tagMap[node.type]
-      : 'div';
+    const tag = node.type in tagMap ? tagMap[node.type] : 'div';
     if (!tag) {
       return (node.children || []).map(c => nodeToHTML(c, depth)).join('\n');
     }

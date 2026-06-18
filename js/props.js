@@ -28,7 +28,7 @@ function updatePropsPanel() {
       ['horizontal', 'hamburger', 'dropdown', 'megamenu', 'breadcrumbs', 'pagination'],
       n.menuStyle || 'horizontal',
       v => { n.menuStyle = v; render(); });
-    appendDeleteBtn(fields, n);
+    addDeleteBtn(fields, n);
     return;
   }
 
@@ -99,7 +99,7 @@ function updatePropsPanel() {
     addBtnGroup(fields, 'Size', ['icon', 'sm', 'md', 'lg'],
       n.size || 'md',
       v => { n.size = v; render(); });
-    addBtnGroup(fields, 'Aspect', ['portrait', 'square', 'landscape'],
+    addBtnGroup(fields, 'Aspect', ['portrait', 'square', 'landscape', 'banner'],
       n.aspect || 'landscape',
       v => { n.aspect = v; render(); });
     addHint(fields, 'Icon ≈ logo/favicon. Sizes are proportional to the parent — the same setting looks smaller in a narrow grid column than in a wide section.');
@@ -120,21 +120,10 @@ function updatePropsPanel() {
       v => { n.showLabel = (v === 'inline'); render(); });
   }
 
-  // Delete button
-  const delBtn = document.createElement('button');
-  delBtn.textContent = '✕ Remove element';
-  delBtn.style.cssText = 'margin-top:16px; width:100%; padding:6px; border:1px solid #e88; border-radius:5px; background:#fff5f5; color:#c44; cursor:pointer; font-size:12px;';
-  delBtn.onclick = () => {
-    pushHistoryState();
-    removeNode(pageTree, n);
-    selectedNode = null;
-    updatePropsPanel();
-    render();
-  };
-  fields.appendChild(delBtn);
+  addDeleteBtn(fields, n);
 }
 
-function appendDeleteBtn(fields, n) {
+function addDeleteBtn(fields, n) {
   const btn = document.createElement('button');
   btn.textContent = '✕ Remove element';
   btn.style.cssText = 'margin-top:16px; width:100%; padding:6px; border:1px solid #e88; border-radius:5px; background:#fff5f5; color:#c44; cursor:pointer; font-size:12px;';
@@ -179,20 +168,6 @@ function addBtnGroup(parent, label, options, current, onChange) {
   parent.appendChild(group);
 }
 
-function addTextInput(parent, label, value, onChange) {
-  const group = document.createElement('div');
-  group.className = 'prop-group';
-  const lbl = document.createElement('label');
-  lbl.textContent = label;
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = value;
-  input.addEventListener('change', () => onChange(input.value));
-  group.appendChild(lbl);
-  group.appendChild(input);
-  parent.appendChild(group);
-}
-
 function addPresetGroup(parent, label, presets, current, onChange) {
   const group = document.createElement('div');
   group.className = 'prop-group';
@@ -219,22 +194,6 @@ function addHint(parent, text) {
   el.className = 'prop-hint';
   el.textContent = text;
   parent.appendChild(el);
-}
-
-function addTextArea(parent, label, value, onChange) {
-  const group = document.createElement('div');
-  group.className = 'prop-group';
-  const lbl = document.createElement('label');
-  lbl.textContent = label;
-  const ta = document.createElement('textarea');
-  ta.value = value;
-  ta.rows = 4;
-  ta.spellcheck = false;
-  ta.style.cssText = 'width:100%; font-family:monospace; font-size:11px; padding:5px 8px; border:1px solid #ddd; border-radius:5px; background:#fafafa; resize:vertical; line-height:1.5;';
-  ta.addEventListener('change', () => onChange(ta.value));
-  group.appendChild(lbl);
-  group.appendChild(ta);
-  parent.appendChild(group);
 }
 
 function removeNode(tree, target) {
