@@ -15,6 +15,11 @@ function stripInternal(node) {
   delete clean._colWidths; delete clean._colOffsets;
   delete clean._rowHeights; delete clean._rowOffsets;
   delete clean._innerX;
+  delete clean._floated;
+  delete clean._effectiveFloat;
+  delete clean._inlineFragments;
+  delete clean._textWords;
+  delete clean._boxes;
   if (clean.children) clean.children = clean.children.map(stripInternal);
   return clean;
 }

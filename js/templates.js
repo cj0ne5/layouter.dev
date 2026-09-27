@@ -38,9 +38,10 @@ const TEMPLATES = [
         {
           type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr', gap: '1rem', padding: '2rem',
           children: [
-            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h3' }, { type: 'p' }] },
-            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h3' }, { type: 'p' }] },
-            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h3' }, { type: 'p' }] }
+            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] },
+            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] },
+            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] },
+            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] }
           ]
         },
         {

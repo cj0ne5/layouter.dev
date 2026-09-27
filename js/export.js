@@ -27,12 +27,32 @@ function exportHTML() {
   function nodeToHTML(node, depth = 0) {
     const ind = '  '.repeat(depth);
 
+    function inlineNodeToHTML(inlineNode) {
+      const text = inlineNode.text || (
+        inlineNode.type === 'a' ? 'Learn more'
+          : inlineNode.type === 'strong' ? 'Important'
+            : inlineNode.type === 'u' ? 'Underline'
+              : inlineNode.type === 'em' ? 'Emphasis'
+                : 'inline text'
+      );
+
+      if (inlineNode.type === 'a') {
+        return `<a href="${inlineNode.href || '#'}">${text}</a>`;
+      }
+      if (['strong', 'u', 'em', 'span'].includes(inlineNode.type)) {
+        return `<${inlineNode.type}>${text}</${inlineNode.type}>`;
+      }
+      return text;
+    }
+
     const tagMap = {
       header: 'header', footer: 'footer', section: 'section',
       div: 'div', article: 'article', nav: 'nav', logo: 'div',
       h1: 'h1', h2: 'h2', h3: 'h3',
       p: 'p', img: 'img', button: 'button',
-      input: 'input', table: 'table', page: null,
+      input: 'input', table: 'table',
+      a: 'a', strong: 'strong', u: 'u', em: 'em', span: 'span',
+      page: null,
     };
     const tag = node.type in tagMap ? tagMap[node.type] : 'div';
     if (!tag) {
@@ -65,6 +85,8 @@ function exportHTML() {
       const aspectRatio = { portrait: '3 / 4', square: '1', landscape: '4 / 3', banner: '8 / 3' }[node.aspect] || '4 / 3';
       if (node.display === 'inline') {
         const sizeW = { icon: '10%', sm: '30%', md: '45%', lg: '65%' };
+        decls.push('display: inline-block');
+        decls.push('vertical-align: middle');
         decls.push(`width: ${sizeW[node.size] || '45%'}`);
         decls.push(`aspect-ratio: ${aspectRatio}`);
         if (node.float && node.float !== 'none') {
@@ -118,6 +140,10 @@ function exportHTML() {
     if (node.type === 'h2')     return `${ind}<h2${classAttr}>Section Heading</h2>`;
     if (node.type === 'h3')     return `${ind}<h3${classAttr}>Sub-heading</h3>`;
 
+    if (INLINE_TYPES.includes(node.type)) {
+      return `${ind}${inlineNodeToHTML(node)}`;
+    }
+
     if (node.type === 'nav') {
       return `${ind}<nav>\n${ind}  <a href="#">Home</a>\n${ind}  <a href="#">About</a>\n${ind}  <a href="#">Work</a>\n${ind}  <a href="#">Contact</a>\n${ind}</nav>`;
     }
@@ -125,15 +151,54 @@ function exportHTML() {
     if (node.type === 'p') {
       const nParas = { sm: 1, md: 2, lg: 4 }[node.text || 'sm'];
       const lorem = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.';
-      const floatImg = (node.children || []).find(c => c.type === 'img' && c.float && c.float !== 'none');
+      const inlineChildren = (node.children || []).filter(c => INLINE_TYPES.includes(c.type));
+      const words = getParagraphLoremWords(node.text);
+      const openings = {};
+      const closings = {};
+
+      const sortedInline = [...inlineChildren].sort((a, b) => {
+        const as = Math.min(a.startWord ?? 0, a.endWord ?? 0);
+        const bs = Math.min(b.startWord ?? 0, b.endWord ?? 0);
+        return as - bs;
+      });
+
+      for (const inline of sortedInline) {
+        let start = Math.min(inline.startWord ?? 0, inline.endWord ?? 0);
+        let end = Math.max(inline.startWord ?? 0, inline.endWord ?? 0);
+        start = Math.max(0, Math.min(start, words.length - 1));
+        end = Math.max(0, Math.min(end, words.length - 1));
+        if (start > end) continue;
+
+        const openTag = inline.type === 'a'
+          ? `<a href="${inline.href || '#'}">`
+          : `<${inline.type}>`;
+        const closeTag = `</${inline.type}>`;
+        if (!openings[start]) openings[start] = [];
+        if (!closings[end]) closings[end] = [];
+        openings[start].push(openTag);
+        closings[end].unshift(closeTag);
+      }
+
+      const firstWords = [];
+      for (let i = 0; i < words.length; i++) {
+        const opens = openings[i] || [];
+        const closes = closings[i] || [];
+        firstWords.push(opens.join('') + words[i] + closes.join(''));
+      }
+      const firstLorem = firstWords.join(' ');
+
+      const floatImg = (node.children || []).find(c => c.type === 'img' && ((c.float && c.float !== 'none') || c.display === 'inline'));
       if (floatImg) {
+        if (floatImg.display === 'inline' && (!floatImg.float || floatImg.float === 'none')) {
+          floatImg.float = 'left';
+        }
         const imgHTML = nodeToHTML(floatImg, depth + 1); // picks up float/width/aspect-ratio via its own class
-        const firstPara = `${ind}<p${classAttr}>\n${imgHTML}\n${ind}  ${lorem}\n${ind}</p>`;
+        const firstPara = `${ind}<p${classAttr}>\n${imgHTML}\n${ind}  ${firstLorem}\n${ind}</p>`;
         if (nParas === 1) return firstPara;
         return firstPara + '\n' + Array(nParas - 1).fill(`${ind}<p>${lorem}</p>`).join('\n');
       }
-      if (nParas === 1) return `${ind}<p${classAttr}>${lorem}</p>`;
-      return Array(nParas).fill(`${ind}<p>${lorem}</p>`).join('\n');
+      if (nParas === 1) return `${ind}<p${classAttr}>${firstLorem}</p>`;
+      return [`${ind}<p${classAttr}>${firstLorem}</p>`, ...Array(nParas - 1).fill(`${ind}<p>${lorem}</p>`)].join('\n');
     }
 
     // --- Container nodes ---
@@ -152,6 +217,9 @@ function exportHTML() {
     used.has('h2')      && `h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }`,
     used.has('h3')      && `h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }`,
     used.has('p')       && `p { color: #555; line-height: 1.6; margin-bottom: 0.5rem; }`,
+    used.has('a')       && `a { color: #1f5cab; }`,
+    used.has('a')       && `a:hover { text-decoration-thickness: 2px; }`,
+    used.has('span')    && `span { color: #333; }`,
     used.has('button')  && `button { padding: 0.5rem 1.5rem; border: none; border-radius: 5px; background: #333; color: #fff; cursor: pointer; }`,
     used.has('nav')     && `nav { display: flex; gap: 1rem; }`,
     used.has('nav')     && `nav a { text-decoration: none; color: inherit; }`,

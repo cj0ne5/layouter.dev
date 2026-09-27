@@ -72,6 +72,44 @@ body {
 
 #topbar button.primary:hover { background: #222; }
 
+#dom-tree-toggle-btn {
+  min-width: 128px;
+}
+
+#quick-help {
+  position: relative;
+  background: #fffdf6;
+  border-bottom: 1px solid #eadfbf;
+  color: #6b5a2b;
+  font-size: 12px;
+  padding: 7px 34px 7px 16px;
+  line-height: 1.5;
+}
+
+#quick-help strong {
+  color: #5c4a18;
+  margin-right: 6px;
+}
+
+#quick-help-close {
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  border: 1px solid #d9cda9;
+  background: #fff9ea;
+  color: #7a6834;
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  line-height: 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#quick-help-close:hover {
+  background: #f6ebcf;
+}
+
 #main {
   display: flex;
   flex: 1;
@@ -132,6 +170,17 @@ body {
 .bank-pattern:hover {
   border-color: #6688cc;
   background: #e4ecff;
+}
+
+.bank-inline {
+  background: #f7efe1;
+  border-color: #d9b27a;
+  color: #5a3b10;
+}
+
+.bank-inline:hover {
+  border-color: #be8c46;
+  background: #f3e3c9;
 }
 
 .bank-item {

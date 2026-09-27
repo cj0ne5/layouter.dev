@@ -32,27 +32,155 @@ function layoutTree(node, x, y, w) {
   // p — height from text size; float img alongside or block img stacked above text
   if (node.type === 'p') {
     const textH = P_TEXT_H[node.text || 'sm'];
-    const floatImg = (node.children || []).find(c => c.type === 'img' && c.float && c.float !== 'none');
+    const children = node.children || [];
+    for (const child of children) child._floated = false;
+    const inlineChildren = children.filter(c => INLINE_TYPES.includes(c.type));
+    const floatImg = children.find(c => c.type === 'img' && ((c.float && c.float !== 'none') || c.display === 'inline'));
+    const blockChildren = children.filter(c => c !== floatImg && !INLINE_TYPES.includes(c.type));
+    node._inlineFragments = [];
+    node._textWords = [];
+
+    function layoutInlineFragments(textX, textW, textTop, textHeight) {
+      if (textW < 40 || textHeight < 12) return;
+
+      const words = getParagraphLoremWords(node.text);
+      const wordSize = node.text || 'sm';
+      const textAlign = node.align || 'left';
+      const fontPx = { sm: 11, md: 12, lg: 13 }[wordSize] || 12;
+      const charW = fontPx * 0.58;
+      const lineH = fontPx + 3;
+      const wordH = fontPx;
+      const wordGap = Math.max(3, Math.round(fontPx * 0.35));
+      const maxBottom = textTop + textHeight - 2;
+      const usableW = Math.max(12, textW - 4);
+
+      // First, break words into lines based on available width.
+      const lines = [];
+      let curLine = [];
+      let curLineW = 0;
+
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const ww = Math.round(word.length * charW + 4);
+        const addW = curLine.length ? (wordGap + ww) : ww;
+        if (curLine.length && curLineW + addW > usableW) {
+          lines.push({ words: curLine, width: curLineW });
+          curLine = [];
+          curLineW = 0;
+        }
+        curLine.push({ index: i, text: word, w: ww });
+        curLineW += curLine.length === 1 ? ww : addW;
+      }
+      if (curLine.length) lines.push({ words: curLine, width: curLineW });
+
+      // Then place each line according to paragraph alignment.
+      let wy = textTop + 4;
+      for (const line of lines) {
+        if (wy + wordH > maxBottom) break;
+
+        let lineStartX = textX + 2;
+        if (textAlign === 'center') {
+          lineStartX = textX + 2 + Math.max(0, (usableW - line.width) / 2);
+        } else if (textAlign === 'right') {
+          lineStartX = textX + 2 + Math.max(0, usableW - line.width);
+        }
+
+        let wx = lineStartX;
+        for (const w of line.words) {
+          node._textWords.push({ index: w.index, text: w.text, x: Math.round(wx), y: wy, w: w.w, h: wordH });
+          wx += w.w + wordGap;
+        }
+
+        wy += lineH;
+      }
+
+      if (!inlineChildren.length || !node._textWords.length) return;
+
+      for (let i = 0; i < inlineChildren.length; i++) {
+        const child = inlineChildren[i];
+        if (child.startWord === undefined || child.endWord === undefined) {
+          const fallbackWordIdx = Math.min(
+            node._textWords.length - 1,
+            Math.max(0, Math.floor(((i + 1) * node._textWords.length) / (inlineChildren.length + 1)))
+          );
+          const fallbackWord = node._textWords[fallbackWordIdx];
+          child.startWord = fallbackWord.index;
+          child.endWord = fallbackWord.index;
+          if (!child.text) child.text = fallbackWord.text.replace(/[.,]/g, '');
+        }
+
+        let start = Math.max(0, Math.min(child.startWord, child.endWord));
+        let end = Math.max(0, Math.max(child.startWord, child.endWord));
+        if (start >= node._textWords.length) start = node._textWords.length - 1;
+        if (end >= node._textWords.length) end = node._textWords.length - 1;
+
+        const selWords = node._textWords.filter(wd => wd.index >= start && wd.index <= end);
+        if (!selWords.length) continue;
+
+        const boxes = [];
+        let lineStart = selWords[0];
+        let prev = selWords[0];
+
+        for (let j = 1; j < selWords.length; j++) {
+          const cur = selWords[j];
+          const sameLine = Math.abs(cur.y - prev.y) <= 1;
+          if (!sameLine) {
+            boxes.push({
+              x: lineStart.x,
+              y: lineStart.y - 1,
+              w: prev.x + prev.w - lineStart.x,
+              h: 13
+            });
+            lineStart = cur;
+          }
+          prev = cur;
+        }
+        boxes.push({
+          x: lineStart.x,
+          y: lineStart.y - 1,
+          w: prev.x + prev.w - lineStart.x,
+          h: 13
+        });
+
+        const firstBox = boxes[0];
+        child._x = firstBox.x;
+        child._y = firstBox.y;
+        child._w = firstBox.w;
+        child._h = firstBox.h;
+        child._boxes = boxes;
+
+        const label = (child.text && child.text.trim()) || selWords.map(wd => wd.text).join(' ');
+        node._inlineFragments.push({ node: child, text: label, type: child.type, boxes });
+      }
+    }
+
     if (floatImg) {
       const fracs = { icon: 0.12, sm: 0.28, md: 0.38, lg: 0.52 };
       const imgW = Math.round(innerW * (fracs[floatImg.size] || 0.38));
       const imgH = Math.round(imgW * ({ portrait: 1.4, square: 1, landscape: 0.55, banner: 0.38 }[floatImg.aspect] || 0.55));
+      const effectiveFloat = (floatImg.float && floatImg.float !== 'none') ? floatImg.float : 'left';
       floatImg._w = imgW; floatImg._h = imgH; floatImg._y = y + pad;
-      floatImg._x = floatImg.float === 'left' ? innerX : innerX + innerW - imgW;
+      floatImg._x = effectiveFloat === 'left' ? innerX : innerX + innerW - imgW;
       floatImg._floated = true;
+      floatImg._effectiveFloat = effectiveFloat;
       node._h = Math.max(imgH, textH) + pad * 2;
+      const gap = 10;
+      const textX = effectiveFloat === 'left' ? floatImg._x + floatImg._w + gap : innerX;
+      const textRight = effectiveFloat === 'left' ? innerX + innerW : floatImg._x - gap;
+      layoutInlineFragments(textX, Math.max(0, textRight - textX), y + pad, textH);
     } else {
-      // Stack any non-float children above the text area
+      // Stack legacy non-inline children above the text area.
       let childH = 0;
-      if (node.children && node.children.length > 0) {
+      if (blockChildren.length > 0) {
         let cy = y + pad;
-        for (const child of node.children) {
+        for (const child of blockChildren) {
           layoutTree(child, innerX, cy, innerW);
           cy += child._h + 8;
         }
         childH = cy - (y + pad);
       }
       node._h = childH + textH + pad * 2;
+      layoutInlineFragments(innerX, innerW, y + pad + childH, textH);
     }
     return;
   }

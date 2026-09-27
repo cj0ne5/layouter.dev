@@ -39,6 +39,8 @@ function renderTree(node) {
     rc.rectangle(x, y, w, h, opts);
     const pad = PADDING[node.padding] || 0;
     const floatImg = (node.children || []).find(c => c._floated);
+    const inlineChildren = (node.children || []).filter(c => INLINE_TYPES.includes(c.type));
+    const blockChildren = (node.children || []).filter(c => c !== floatImg && !INLINE_TYPES.includes(c.type));
     if (floatImg) {
       const imgSel = floatImg === selectedNode;
       const imgOpts = { ...ROUGH_OPTS, fill: FILLS.img, fillStyle: 'solid', stroke: imgSel ? '#3366cc' : '#555', strokeWidth: imgSel ? 2.2 : ROUGH_OPTS.strokeWidth };
@@ -47,17 +49,20 @@ function renderTree(node) {
       rc.line(floatImg._x + floatImg._w, floatImg._y, floatImg._x, floatImg._y + floatImg._h, { roughness: 0.8, stroke: '#888', strokeWidth: 1 });
       hitBoxes.push({ node: floatImg, x: floatImg._x, y: floatImg._y, w: floatImg._w, h: floatImg._h });
       const gap = 10;
-      const textX = floatImg.float === 'left' ? floatImg._x + floatImg._w + gap : x + pad;
-      const textMaxX = floatImg.float === 'left' ? x + w - pad : floatImg._x - gap;
-      drawSquigglyLines(node, textX, y + pad, textMaxX - textX, h - pad * 2);
+      const effectiveFloat = floatImg._effectiveFloat || ((floatImg.float && floatImg.float !== 'none') ? floatImg.float : 'left');
+      const textX = effectiveFloat === 'left' ? floatImg._x + floatImg._w + gap : x + pad;
+      const textMaxX = effectiveFloat === 'left' ? x + w - pad : floatImg._x - gap;
+      if ((node._textWords || []).length) drawParagraphWords(node);
+      else drawSquigglyLines(node, textX, y + pad, textMaxX - textX, h - pad * 2);
     } else {
-      // Render any non-float children first (they stack above the text)
+      // Render any legacy non-inline children first (they stack above the text).
       let textStartY = y + 4;
-      for (const child of (node.children || [])) {
+      for (const child of blockChildren) {
         renderTree(child);
         textStartY = Math.max(textStartY, child._y + child._h + 4);
       }
-      drawSquigglyLines(node, x + 4, textStartY, w - 8, y + h - 4 - textStartY);
+      if ((node._textWords || []).length) drawParagraphWords(node);
+      else drawSquigglyLines(node, x + 4, textStartY, w - 8, y + h - 4 - textStartY);
     }
     hitBoxes.push({ node, x, y, w, h });
     return;
@@ -315,6 +320,72 @@ function drawSquigglyLines(node, x, y, w, h) {
   ctx.restore();
 }
 
+function drawParagraphWords(paragraphNode) {
+  const words = paragraphNode._textWords || [];
+  if (!words.length) return;
+
+  const fragments = paragraphNode._inlineFragments || [];
+  const activeSel = (paragraphSelection && paragraphSelection.paragraph === paragraphNode)
+    ? { start: Math.min(paragraphSelection.start, paragraphSelection.end), end: Math.max(paragraphSelection.start, paragraphSelection.end) }
+    : null;
+
+  ctx.save();
+  ctx.font = '12px monospace';
+  ctx.textBaseline = 'top';
+
+  for (const word of words) {
+    if (activeSel && word.index >= activeSel.start && word.index <= activeSel.end) {
+      ctx.fillStyle = 'rgba(255, 198, 66, 0.35)';
+      ctx.fillRect(word.x - 1, word.y - 1, word.w + 2, word.h + 2);
+    }
+    ctx.fillStyle = '#b6b6b6';
+    ctx.fillText(word.text, word.x, word.y);
+  }
+
+  for (const frag of fragments) {
+    const n = frag.node;
+    const sel = n === selectedNode;
+    const boxes = (n._boxes && n._boxes.length) ? n._boxes : [{ x: n._x, y: n._y, w: n._w, h: n._h }];
+    const start = Math.min(n.startWord ?? 0, n.endWord ?? 0);
+    const end = Math.max(n.startWord ?? 0, n.endWord ?? 0);
+    const fragWords = words.filter(w => w.index >= start && w.index <= end);
+
+    for (const b of boxes) {
+      if (sel) {
+        ctx.fillStyle = 'rgba(51, 102, 204, 0.15)';
+        ctx.fillRect(b.x - 1, b.y - 1, b.w + 2, b.h + 2);
+        ctx.strokeStyle = '#3366cc';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(b.x - 1, b.y - 1, b.w + 2, b.h + 2);
+      }
+    }
+
+    if (n.type === 'strong') ctx.font = 'bold 12px monospace';
+    else if (n.type === 'em') ctx.font = 'italic 12px monospace';
+    else ctx.font = '12px monospace';
+
+    ctx.fillStyle = n.type === 'a' ? '#1f5cab' : '#444';
+    for (const w of fragWords) {
+      ctx.fillText(w.text, w.x, w.y);
+    }
+
+    if (n.type === 'a' || n.type === 'u') {
+      ctx.strokeStyle = n.type === 'a' ? '#1f5cab' : '#666';
+      ctx.lineWidth = 1;
+      for (const b of boxes) {
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y + b.h - 1);
+        ctx.lineTo(b.x + b.w, b.y + b.h - 1);
+        ctx.stroke();
+      }
+    }
+
+    for (const b of boxes) hitBoxes.push({ node: n, x: b.x, y: b.y, w: b.w, h: b.h });
+  }
+
+  ctx.restore();
+}
+
 function drawLabel(node, x, y, w, h) {
   const label = LABELS[node.type] || node.type;
   ctx.save();
@@ -382,6 +453,28 @@ function drawWelcomeMessage(margin, bodyW, totalH) {
 }
 
 let stableImageData = null; // canvas snapshot before drag overlays
+
+function renderWordSelectionFrame(paragraphNode) {
+  if (!ctx || !stableImageData || !paragraphNode || !paragraphSelection) return;
+  if (stableImageData.width !== canvas.width || stableImageData.height !== canvas.height) return;
+  if (paragraphSelection.paragraph !== paragraphNode) return;
+
+  const words = paragraphNode._textWords || [];
+  if (!words.length) return;
+
+  const start = Math.min(paragraphSelection.start, paragraphSelection.end);
+  const end = Math.max(paragraphSelection.start, paragraphSelection.end);
+
+  ctx.putImageData(stableImageData, 0, 0);
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 198, 66, 0.35)';
+  for (const word of words) {
+    if (word.index >= start && word.index <= end) {
+      ctx.fillRect(word.x - 1, word.y - 1, word.w + 2, word.h + 2);
+    }
+  }
+  ctx.restore();
+}
 
 function drawDropIndicator() {
   if (!dropIndicator) return;
@@ -535,7 +628,7 @@ function render() {
 
   scaleCanvas();
   replaceHistoryState();
-  buildDomTree();
+  if (domTreeVisible) buildDomTree();
   updateSemanticWarnings();
   saveLayout();
 }
@@ -545,7 +638,8 @@ function scaleCanvas() {
   const wrap = document.getElementById('canvas-wrap');
   const domPanel = document.getElementById('dom-tree-panel');
   // Subtract wrap's horizontal padding (32px each side) and the dom tree panel + its margin
-  const available = wrap.clientWidth - 64 - domPanel.offsetWidth - 16;
+  const domPanelW = (!domPanel || domPanel.style.display === 'none') ? 0 : domPanel.offsetWidth + 16;
+  const available = wrap.clientWidth - 64 - domPanelW;
   const scale = Math.min(1, available / canvas.width);
   if (scale < 1) {
     canvas.style.width  = Math.floor(canvas.width  * scale) + 'px';

@@ -1,6 +1,16 @@
 const CONTAINER_TYPES = ['page', 'section', 'header', 'footer', 'div', 'article', 'p'];
 const EDGE_ZONE = 8; // px from a container edge → insert before/after in parent instead of inside
 
+function isInlineType(type) {
+  return INLINE_TYPES.includes(type);
+}
+
+function canNest(childType, parentType) {
+  if (parentType === 'p') return childType === 'img' || isInlineType(childType);
+  if (isInlineType(childType)) return parentType === 'p';
+  return true;
+}
+
 // Returns true if `node` is anywhere inside `ancestor`'s subtree
 function nodeContains(ancestor, node) {
   if (!ancestor.children) return false;
@@ -12,7 +22,7 @@ function nodeContains(ancestor, node) {
 
 // Find the best container and insert index for a drop at (mx, my).
 // excludeNode and its subtree are skipped (used when rearranging canvas elements).
-function computeDropTarget(mx, my, excludeNode) {
+function computeDropTarget(mx, my, excludeNode, incomingType) {
   let container = pageTree;
   let bestArea = Infinity;
   let bestH = null;
@@ -29,7 +39,8 @@ function computeDropTarget(mx, my, excludeNode) {
 
   // Edge-zone: if cursor is within EDGE_ZONE px of a non-page container's
   // start/end edge, insert before/after it in its parent rather than inside it.
-  if (container !== pageTree && bestH) {
+  const preserveInsideParagraph = isInlineType(incomingType) && container.type === 'p';
+  if (container !== pageTree && bestH && !preserveInsideParagraph) {
     const isHoriz = container.layout === 'flex';
     const nearStart = isHoriz ? (mx - bestH.x < EDGE_ZONE)          : (my - bestH.y < EDGE_ZONE);
     const nearEnd   = isHoriz ? (bestH.x + bestH.w - mx < EDGE_ZONE) : (bestH.y + bestH.h - my < EDGE_ZONE);
@@ -57,7 +68,19 @@ function insertPosInContainer(container, mx, my, excludeNode) {
 
   let viPos = visible.length; // default: after all visible
 
-  if (container.layout === 'grid') {
+  if (container.type === 'p') {
+    for (let vi = 0; vi < visible.length; vi++) {
+      const c = visible[vi].node;
+      if (c._y === undefined || c._x === undefined) continue;
+
+      if (my < c._y) { viPos = vi; break; }
+
+      const sameRow = Math.abs(my - (c._y + c._h / 2)) <= Math.max(10, c._h);
+      if (sameRow && mx < c._x + c._w / 2) { viPos = vi; break; }
+
+      if (my < c._y + c._h / 2) { viPos = vi; break; }
+    }
+  } else if (container.layout === 'grid') {
     // Grid: 2D reading-order comparison
     for (let vi = 0; vi < visible.length; vi++) {
       const c = visible[vi].node;
@@ -87,10 +110,16 @@ function insertPosInContainer(container, mx, my, excludeNode) {
 
 function performCanvasDrop(mx, my) {
   if (!canvasDragNode) return;
-  const target = computeDropTarget(mx, my, canvasDragNode);
+  const target = computeDropTarget(mx, my, canvasDragNode, canvasDragNode.type);
   if (!target) return;
   if (target.parent === canvasDragNode) return;
   if (nodeContains(canvasDragNode, target.parent)) return;
+  if (!canNest(canvasDragNode.type, target.parent.type)) {
+    alert(target.parent.type === 'p'
+      ? 'Only inline text elements (a, strong, u, em, span) and img can be nested inside p.'
+      : 'Inline text elements must be placed inside a paragraph (p).');
+    return;
+  }
 
   const origParent = findParent(pageTree, canvasDragNode);
   const origIndex  = origParent ? origParent.children.indexOf(canvasDragNode) : -1;
@@ -112,6 +141,32 @@ let dragRenderPending = false;
 function setupCanvasEvents() {
   let mdPos = null;
   let mdNode = null;
+  let selectingWords = false;
+  let wordSelectionParagraph = null;
+
+  function findWordAt(paragraph, mx, my) {
+    const words = paragraph && paragraph._textWords ? paragraph._textWords : [];
+    for (const w of words) {
+      if (mx >= w.x && mx <= w.x + w.w && my >= w.y && my <= w.y + w.h) return w.index;
+    }
+    return -1;
+  }
+
+  function updateWordSelection(endIndex, commitUI) {
+    if (!wordSelectionParagraph || endIndex < 0) return;
+    if (!paragraphSelection || paragraphSelection.paragraph !== wordSelectionParagraph) {
+      paragraphSelection = { paragraph: wordSelectionParagraph, start: endIndex, end: endIndex };
+    } else {
+      paragraphSelection.end = endIndex;
+    }
+    selectedNode = wordSelectionParagraph;
+    if (commitUI) {
+      updatePropsPanel();
+      render();
+    } else {
+      renderWordSelectionFrame(wordSelectionParagraph);
+    }
+  }
 
   function getCanvasPos(e) {
     const rect = canvas.getBoundingClientRect();
@@ -124,6 +179,27 @@ function setupCanvasEvents() {
   canvas.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
     const { x: mx, y: my } = getCanvasPos(e);
+
+    if (selectedNode && selectedNode.type === 'p') {
+      const wi = findWordAt(selectedNode, mx, my);
+      if (wi !== -1) {
+        if (e.shiftKey && paragraphSelection && paragraphSelection.paragraph === selectedNode) {
+          wordSelectionParagraph = selectedNode;
+          paragraphSelection.end = wi;
+          updateWordSelection(wi, true);
+          wordSelectionParagraph = null;
+          e.preventDefault();
+          return;
+        }
+        selectingWords = true;
+        wordSelectionParagraph = selectedNode;
+        paragraphSelection = { paragraph: selectedNode, start: wi, end: wi };
+        updatePropsPanel();
+        renderWordSelectionFrame(wordSelectionParagraph);
+        e.preventDefault();
+        return;
+      }
+    }
 
     let best = null, bestArea = Infinity;
     for (const h of hitBoxes) {
@@ -140,6 +216,12 @@ function setupCanvasEvents() {
   canvas.addEventListener('mousemove', e => {
     const { x: mx, y: my } = getCanvasPos(e);
 
+    if (selectingWords && wordSelectionParagraph) {
+      const wi = findWordAt(wordSelectionParagraph, mx, my);
+      if (wi !== -1) updateWordSelection(wi, false);
+      return;
+    }
+
     // Initiate canvas drag once threshold exceeded
     if (mdPos && !canvasDragging && mdNode && mdNode.type !== 'page') {
       const dx = e.clientX - mdPos.sx, dy = e.clientY - mdPos.sy;
@@ -151,7 +233,7 @@ function setupCanvasEvents() {
     }
 
     if (canvasDragging && canvasDragNode) {
-      dropIndicator = computeDropTarget(mx, my, canvasDragNode);
+      dropIndicator = computeDropTarget(mx, my, canvasDragNode, canvasDragNode.type);
       if (!dragRenderPending) {
         dragRenderPending = true;
         requestAnimationFrame(() => { dragRenderPending = false; renderDragFrame(); });
@@ -166,6 +248,15 @@ function setupCanvasEvents() {
   });
 
   function finishInteraction(e, wasOnCanvas) {
+    if (selectingWords) {
+      updateWordSelection(paragraphSelection ? paragraphSelection.end : -1, true);
+      selectingWords = false;
+      wordSelectionParagraph = null;
+      mdPos = null;
+      mdNode = null;
+      return;
+    }
+
     if (canvasDragging) {
       if (wasOnCanvas && canvasDragNode) {
         const { x: mx, y: my } = getCanvasPos(e);
@@ -180,6 +271,7 @@ function setupCanvasEvents() {
       render();
     } else if (wasOnCanvas && mdPos) {
       selectedNode = mdNode;
+      if (!selectedNode || selectedNode.type !== 'p') paragraphSelection = null;
       updatePropsPanel();
       render();
     }
@@ -191,6 +283,13 @@ function setupCanvasEvents() {
 
   // Cancel drag if released outside canvas
   window.addEventListener('mouseup', e => {
+    if (selectingWords && e.target !== canvas) {
+      selectingWords = false;
+      wordSelectionParagraph = null;
+      mdPos = null;
+      mdNode = null;
+      return;
+    }
     if (e.target !== canvas && (canvasDragging || mdPos)) {
       finishInteraction(e, false);
     }
@@ -216,7 +315,7 @@ function setupDragDrop() {
     const rect = canvas.getBoundingClientRect();
     const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
     const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
-    dropIndicator = computeDropTarget(mx, my, null);
+    dropIndicator = computeDropTarget(mx, my, null, dragType);
 
     if (!bankDragPending) {
       bankDragPending = true;
@@ -238,6 +337,16 @@ function setupDragDrop() {
     pushHistoryState();
     const newNode = makeNode(dragType);
     const target = dropIndicator || { parent: pageTree, index: (pageTree.children || []).length };
+
+    if (!canNest(newNode.type, target.parent.type)) {
+      alert(target.parent.type === 'p'
+        ? 'Only inline text elements (a, strong, u, em, span) and img can be nested inside p.'
+        : 'Inline text elements must be dropped inside a paragraph (p).');
+      dropIndicator = null;
+      dragType = null;
+      render();
+      return;
+    }
 
     if (!target.parent.children) target.parent.children = [];
     target.parent.children.splice(target.index, 0, newNode);
@@ -264,6 +373,11 @@ function makeNode(type) {
     p: { type: 'p' }, button: { type: 'button' }, logo: { type: 'logo' },
     input: { type: 'input' },
     table: { type: 'table' },
+    a: { type: 'a', text: 'Learn more', href: '#' },
+    strong: { type: 'strong', text: 'Important' },
+    u: { type: 'u', text: 'Underline' },
+    em: { type: 'em', text: 'Emphasis' },
+    span: { type: 'span', text: 'inline text' },
 
     // Patterns — pre-built trees of real HTML elements
     'pattern-hero': {

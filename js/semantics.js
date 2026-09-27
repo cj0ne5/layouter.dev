@@ -10,6 +10,18 @@ function checkSemantics(tree) {
   }
   const all = allNodes(tree);
 
+  function findParentType(tree, target) {
+    function walk(node, parent) {
+      if (node === target) return parent;
+      for (const child of (node.children || [])) {
+        const found = walk(child, node);
+        if (found) return found;
+      }
+      return null;
+    }
+    return walk(tree, null);
+  }
+
   // header must be first direct child of body
   const headerIdx = children.findIndex(c => c.type === 'header');
   if (headerIdx > 0) warnings.push('‹header› should be the first element inside ‹body›');
@@ -44,17 +56,12 @@ function checkSemantics(tree) {
     if (!hasHeading) warnings.push('An ‹article› has no heading inside it — add an ‹h2› or ‹h3›');
   }
 
-  // nav not inside header or footer
-  function findParentType(tree, target) {
-    function walk(node, parent) {
-      if (node === target) return parent;
-      for (const child of (node.children || [])) {
-        const found = walk(child, node);
-        if (found) return found;
-      }
-      return null;
+  for (const inlineNode of all.filter(n => INLINE_TYPES.includes(n.type))) {
+    const parent = findParentType(tree, inlineNode);
+    if (!parent || parent.type !== 'p') {
+      warnings.push(`‹${inlineNode.type}› should be inside a ‹p› element`);
+      break;
     }
-    return walk(tree, null);
   }
   const navs = all.filter(n => n.type === 'nav');
   for (const nav of navs) {
@@ -67,18 +74,37 @@ function checkSemantics(tree) {
     }
   }
 
-  // h3 without a preceding h2 in the same container
-  function checkHeadingOrder(node) {
-    const kids = node.children || [];
-    const types = kids.map(c => c.type);
-    if (types.includes('h3') && !types.includes('h2') && !types.includes('h1')) {
-      // only warn if there's no h1/h2 anywhere in the subtree above
-      const hasH2Above = all.some(n => n.type === 'h2');
-      if (!hasH2Above) warnings.push('‹h3› used without any ‹h1› or ‹h2› — headings should be in order');
+  // Heading level skips in document order (e.g., h1 -> h3)
+  let lastHeadingLevel = 0;
+  for (const n of all) {
+    if (!/^h[1-6]$/.test(n.type)) continue;
+    const level = parseInt(n.type.slice(1), 10);
+    if (lastHeadingLevel && level > lastHeadingLevel + 1) {
+      warnings.push(`Heading level skips from ‹h${lastHeadingLevel}› to ‹h${level}› — headings should step by one level`);
+      break;
     }
-    for (const child of kids) checkHeadingOrder(child);
+    lastHeadingLevel = level;
   }
-  checkHeadingOrder(tree);
+
+  // Empty landmarks
+  const structureOnly = new Set(['page', 'section', 'header', 'footer', 'div', 'article']);
+  function hasMeaningfulDescendant(node) {
+    for (const child of (node.children || [])) {
+      if (!structureOnly.has(child.type)) return true;
+      if (hasMeaningfulDescendant(child)) return true;
+    }
+    return false;
+  }
+  for (const lm of all.filter(n => ['header', 'nav', 'section', 'footer'].includes(n.type))) {
+    if (lm.type === 'nav') {
+      if ((lm.children || []).length > 0) continue;
+      const style = lm.menuStyle || 'horizontal';
+      if (['horizontal', 'hamburger', 'dropdown', 'megamenu', 'breadcrumbs', 'pagination'].includes(style)) continue;
+    }
+    if (!hasMeaningfulDescendant(lm)) {
+      warnings.push(`‹${lm.type}› appears empty — add meaningful content (headings, text, media, links, or controls)`);
+    }
+  }
 
   return [...new Set(warnings)]; // deduplicate
 }

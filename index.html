@@ -21,7 +21,16 @@
   </select>
   <button id="copy-link-btn" onclick="copyShareLink()">Copy Link</button>
   <button onclick="exportHTML()">Export HTML/CSS</button>
+  <button id="dom-tree-toggle-btn" onclick="toggleDomTree()">DOM Tree: On</button>
   <button onclick="openAboutModal()">About</button>
+</div>
+
+<div id="quick-help">
+  <button id="quick-help-close" onclick="dismissQuickHelp()" aria-label="Close quick start">×</button>
+  <strong>Quick start:</strong>
+  1) Drag structure/layout blocks from the left.
+  2) Click a paragraph and drag across words.
+  3) Apply inline tags in Properties.
 </div>
 
 <div id="main">
@@ -47,6 +56,9 @@
     <div class="bank-item" draggable="true" data-type="input">input</div>
     <div class="bank-item" draggable="true" data-type="button">button</div>
     <div class="bank-item" draggable="true" data-type="table">table</div>
+
+    <h2>Inline text</h2>
+    <p class="bank-hint">Select words inside a paragraph, then apply inline tags from the Properties panel.</p>
 
     <h2>Patterns</h2>
     <p class="bank-hint">Pre-built arrangements of real HTML elements — drag one in to see how it's structured.</p>

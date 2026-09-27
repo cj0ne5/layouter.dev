@@ -32,6 +32,20 @@ function updatePropsPanel() {
     return;
   }
 
+  if (INLINE_TYPES.includes(n.type)) {
+    const rs = Math.min(n.startWord ?? 0, n.endWord ?? 0);
+    const re = Math.max(n.startWord ?? 0, n.endWord ?? 0);
+    addHint(fields, `Wraps sample words ${rs + 1} to ${re + 1}. To change the wrapped text, clear this inline tag and make a new word selection on the paragraph.`);
+    if (n.type === 'a') {
+      addTextInput(fields, 'Href', n.href || '#', v => {
+        n.href = v || '#';
+        render();
+      });
+    }
+    addDeleteBtn(fields, n);
+    return;
+  }
+
   // Layout
   if (['section', 'header', 'footer', 'div', 'article'].includes(n.type)) {
     addBtnGroup(fields, 'Layout', ['block', 'flex', 'grid'],
@@ -78,6 +92,7 @@ function updatePropsPanel() {
     addBtnGroup(fields, 'Text', ['sm', 'md', 'lg'],
       n.text || 'sm',
       v => { n.text = v; render(); });
+    addParagraphAnnotator(fields, n);
   }
 
   // Text alignment (p and headings)
@@ -96,6 +111,8 @@ function updatePropsPanel() {
 
   // Image props
   if (n.type === 'img') {
+    const parent = findParent(pageTree, n);
+    const inParagraph = !!parent && parent.type === 'p';
     addBtnGroup(fields, 'Size', ['icon', 'sm', 'md', 'lg'],
       n.size || 'md',
       v => { n.size = v; render(); });
@@ -105,11 +122,23 @@ function updatePropsPanel() {
     addHint(fields, 'Icon ≈ logo/favicon. Sizes are proportional to the parent — the same setting looks smaller in a narrow grid column than in a wide section.');
     addBtnGroup(fields, 'Display', ['block', 'inline'],
       n.display || 'block',
-      v => { n.display = v; render(); updatePropsPanel(); });
+      v => {
+        n.display = v;
+        if (inParagraph && v === 'inline' && (!n.float || n.float === 'none')) n.float = 'left';
+        render();
+        updatePropsPanel();
+      });
     if (n.display === 'inline') {
-      addBtnGroup(fields, 'Float', ['none', 'left', 'right'],
-        n.float || 'none',
+      const floatOptions = inParagraph ? ['left', 'right'] : ['none', 'left', 'right'];
+      const currentFloat = inParagraph
+        ? ((n.float === 'right') ? 'right' : 'left')
+        : (n.float || 'none');
+      addBtnGroup(fields, 'Float', floatOptions,
+        currentFloat,
         v => { n.float = v; render(); });
+      if (inParagraph) {
+        addHint(fields, 'Inside paragraphs, inline images are shown as text-wrapping media (left/right). Use block display to stack images above text.');
+      }
     }
   }
 
@@ -121,6 +150,153 @@ function updatePropsPanel() {
   }
 
   addDeleteBtn(fields, n);
+}
+
+function defaultInlineText(type) {
+  if (type === 'a') return 'Learn more';
+  if (type === 'strong') return 'Important';
+  if (type === 'u') return 'Underline';
+  if (type === 'em') return 'Emphasis';
+  return 'inline text';
+}
+
+function getParagraphSelectionRange(paragraph) {
+  if (!paragraphSelection || paragraphSelection.paragraph !== paragraph) return null;
+  const words = paragraph._textWords || [];
+  if (!words.length) return null;
+  const maxIdx = words[words.length - 1].index;
+  const start = Math.max(0, Math.min(paragraphSelection.start, paragraphSelection.end, maxIdx));
+  const end = Math.max(0, Math.min(Math.max(paragraphSelection.start, paragraphSelection.end), maxIdx));
+  return { start, end };
+}
+
+function rangesOverlap(a, b) {
+  return a.start <= b.end && b.start <= a.end;
+}
+
+function getSelectedWordsText(paragraph, range) {
+  const words = (paragraph._textWords || [])
+    .filter(w => w.index >= range.start && w.index <= range.end)
+    .map(w => w.text);
+  return words.join(' ');
+}
+
+function applyInlineToSelection(paragraph, type) {
+  const range = getParagraphSelectionRange(paragraph);
+  if (!range) return;
+
+  const wordsText = getSelectedWordsText(paragraph, range);
+  if (!wordsText) return;
+
+  pushHistoryState();
+  if (!paragraph.children) paragraph.children = [];
+
+  paragraph.children = paragraph.children.filter(child => {
+    if (!INLINE_TYPES.includes(child.type)) return true;
+    const childRange = {
+      start: Math.min(child.startWord ?? 0, child.endWord ?? 0),
+      end: Math.max(child.startWord ?? 0, child.endWord ?? 0)
+    };
+    return !rangesOverlap(range, childRange);
+  });
+
+  const inlineNode = { type, text: wordsText.replace(/[.,]$/, ''), startWord: range.start, endWord: range.end };
+  if (type === 'a') inlineNode.href = '#';
+  paragraph.children.push(inlineNode);
+  paragraph.children.sort((a, b) => (a.startWord ?? -1) - (b.startWord ?? -1));
+
+  selectedNode = paragraph;
+  render();
+  updatePropsPanel();
+}
+
+function clearInlineInSelection(paragraph) {
+  const range = getParagraphSelectionRange(paragraph);
+  if (!range || !paragraph.children) return;
+
+  const before = paragraph.children.length;
+  const kept = paragraph.children.filter(child => {
+    if (!INLINE_TYPES.includes(child.type)) return true;
+    const childRange = {
+      start: Math.min(child.startWord ?? 0, child.endWord ?? 0),
+      end: Math.max(child.startWord ?? 0, child.endWord ?? 0)
+    };
+    return !rangesOverlap(range, childRange);
+  });
+  if (kept.length === before) return;
+
+  pushHistoryState();
+  paragraph.children = kept;
+  selectedNode = paragraph;
+  render();
+  updatePropsPanel();
+}
+
+function clearAllInlineInParagraph(paragraph) {
+  if (!paragraph.children) return;
+  const hasInline = paragraph.children.some(c => INLINE_TYPES.includes(c.type));
+  if (!hasInline) return;
+
+  pushHistoryState();
+  paragraph.children = paragraph.children.filter(c => !INLINE_TYPES.includes(c.type));
+  paragraphSelection = null;
+  selectedNode = paragraph;
+  render();
+  updatePropsPanel();
+}
+
+function addParagraphAnnotator(parent, paragraph) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+  group.innerHTML = '<label>Inline annotate</label>';
+
+  const hint = document.createElement('div');
+  hint.className = 'prop-hint';
+  hint.style.margin = '0 0 8px 0';
+  hint.textContent = 'Drag across words in this paragraph, then apply a tag.';
+  group.appendChild(hint);
+
+  const range = getParagraphSelectionRange(paragraph);
+  const selectionPreview = document.createElement('div');
+  selectionPreview.style.cssText = 'font-size:11px; color:#666; margin-bottom:8px; min-height:16px;';
+  selectionPreview.textContent = range
+    ? `Selection: "${getSelectedWordsText(paragraph, range)}"`
+    : 'Selection: none';
+  group.appendChild(selectionPreview);
+
+  const actions = document.createElement('div');
+  actions.className = 'btn-group';
+  const buttons = [
+    ['Link', 'a'],
+    ['Strong', 'strong'],
+    ['Underline', 'u'],
+    ['Emphasis', 'em'],
+    ['Span', 'span']
+  ];
+
+  for (const [label, type] of buttons) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.disabled = !range;
+    btn.onclick = () => applyInlineToSelection(paragraph, type);
+    actions.appendChild(btn);
+  }
+  group.appendChild(actions);
+
+  const clearBtn = document.createElement('button');
+  clearBtn.textContent = 'Clear formatting in selection';
+  clearBtn.disabled = !range;
+  clearBtn.style.cssText = 'margin-top:8px; width:100%; padding:6px; border:1px solid #ddd; border-radius:5px; background:#fafafa; color:#555; cursor:pointer; font-size:12px;';
+  clearBtn.onclick = () => clearInlineInSelection(paragraph);
+  group.appendChild(clearBtn);
+
+  const resetAllBtn = document.createElement('button');
+  resetAllBtn.textContent = 'Reset all inline tags in paragraph';
+  resetAllBtn.style.cssText = 'margin-top:6px; width:100%; padding:6px; border:1px solid #e6d9aa; border-radius:5px; background:#fffdf6; color:#6b5a2b; cursor:pointer; font-size:12px;';
+  resetAllBtn.onclick = () => clearAllInlineInParagraph(paragraph);
+  group.appendChild(resetAllBtn);
+
+  parent.appendChild(group);
 }
 
 function addDeleteBtn(fields, n) {
@@ -194,6 +370,21 @@ function addHint(parent, text) {
   el.className = 'prop-hint';
   el.textContent = text;
   parent.appendChild(el);
+}
+
+function addTextInput(parent, label, current, onChange) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+  group.innerHTML = `<label>${label}</label>`;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current || '';
+  input.addEventListener('change', () => {
+    pushHistoryState();
+    onChange(input.value.trim());
+  });
+  group.appendChild(input);
+  parent.appendChild(group);
 }
 
 function removeNode(tree, target) {
