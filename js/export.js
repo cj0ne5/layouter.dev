@@ -46,7 +46,7 @@ function exportHTML() {
     }
 
     const tagMap = {
-      header: 'header', footer: 'footer', section: 'section',
+      header: 'header', footer: 'footer', main: 'main', section: 'section',
       div: 'div', article: 'article', nav: 'nav', logo: 'div',
       h1: 'h1', h2: 'h2', h3: 'h3',
       p: 'p', img: 'img', button: 'button',

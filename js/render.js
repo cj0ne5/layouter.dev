@@ -394,7 +394,7 @@ function drawLabel(node, x, y, w, h) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  if (['header', 'footer', 'section', 'div', 'article'].includes(node.type)) {
+  if (['header', 'footer', 'main', 'section', 'div', 'article'].includes(node.type)) {
     ctx.font = '11px monospace';
     ctx.fillStyle = '#aaa';
     ctx.textAlign = 'left';

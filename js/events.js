@@ -1,4 +1,4 @@
-const CONTAINER_TYPES = ['page', 'section', 'header', 'footer', 'div', 'article', 'p'];
+const CONTAINER_TYPES = ['page', 'main', 'section', 'header', 'footer', 'div', 'article', 'p'];
 const EDGE_ZONE = 8; // px from a container edge → insert before/after in parent instead of inside
 
 function isInlineType(type) {
@@ -362,8 +362,9 @@ function setupDragDrop() {
 function makeNode(type) {
   const defaults = {
     // Elements
-    header:  { type: 'header',  layout: 'flex',  align: 'space-between', padding: '1rem', children: [] },
-    footer:  { type: 'footer',  layout: 'flex',  align: 'center',        padding: '0.5rem', children: [{ type: 'p' }] },
+    header:  { type: 'header',  layout: 'block', padding: '1rem', children: [] },
+    footer:  { type: 'footer',  layout: 'block', padding: '0.5rem', children: [{ type: 'p' }] },
+    main:    { type: 'main',    layout: 'block', padding: '1rem', children: [] },
     section: { type: 'section', layout: 'block', padding: '2rem', children: [] },
     nav:     { type: 'nav' },
     div:     { type: 'div',     layout: 'block', padding: '1rem', children: [] },

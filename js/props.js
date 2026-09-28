@@ -47,7 +47,7 @@ function updatePropsPanel() {
   }
 
   // Layout
-  if (['section', 'header', 'footer', 'div', 'article'].includes(n.type)) {
+  if (['main', 'section', 'header', 'footer', 'div', 'article'].includes(n.type)) {
     addBtnGroup(fields, 'Layout', ['block', 'flex', 'grid'],
       n.layout || 'block',
       v => { n.layout = v; render(); updatePropsPanel(); });

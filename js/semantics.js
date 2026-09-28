@@ -37,6 +37,16 @@ function checkSemantics(tree) {
   if (h1s.length === 0) warnings.push('Page has no ‹h1› — every page should have one main heading');
   if (h1s.length > 1) warnings.push(`Page has ${h1s.length} ‹h1› elements — there should only be one`);
 
+  // Only one main per page, directly inside body, wrapping the sections
+  const mains = all.filter(n => n.type === 'main');
+  if (mains.length > 1) warnings.push(`Page has ${mains.length} ‹main› elements — there should only be one`);
+  if (mains.some(m => !children.includes(m))) {
+    warnings.push('‹main› should be directly inside ‹body›, between ‹header› and ‹footer›');
+  }
+  if (mains.length === 0 && all.some(n => n.type === 'section')) {
+    warnings.push('Page has no ‹main› — wrap the main content (your ‹section›s) in a ‹main› element');
+  }
+
   // section inside section
   function checkNestedSections(node, inSection) {
     if (node.type === 'section' && inSection) {
@@ -87,7 +97,7 @@ function checkSemantics(tree) {
   }
 
   // Empty landmarks
-  const structureOnly = new Set(['page', 'section', 'header', 'footer', 'div', 'article']);
+  const structureOnly = new Set(['page', 'main', 'section', 'header', 'footer', 'div', 'article']);
   function hasMeaningfulDescendant(node) {
     for (const child of (node.children || [])) {
       if (!structureOnly.has(child.type)) return true;
@@ -95,7 +105,7 @@ function checkSemantics(tree) {
     }
     return false;
   }
-  for (const lm of all.filter(n => ['header', 'nav', 'section', 'footer'].includes(n.type))) {
+  for (const lm of all.filter(n => ['header', 'nav', 'main', 'section', 'footer'].includes(n.type))) {
     if (lm.type === 'nav') {
       if ((lm.children || []).length > 0) continue;
       const style = lm.menuStyle || 'horizontal';

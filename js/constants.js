@@ -9,6 +9,7 @@ const FILLS = {
   page: 'transparent',
   header: '#e8e4f0',
   footer: '#e8e4f0',
+  main: '#f2f4f8',
   section: '#edf4f0',
   nav: '#dde8f5',
   div: '#f5f0e8',
@@ -29,7 +30,7 @@ const FILLS = {
 };
 
 const LABELS = {
-  header: 'header', footer: 'footer', section: 'section',
+  header: 'header', footer: 'footer', main: 'main', section: 'section',
   nav: '≡ nav', div: 'div', article: 'article',
   img: '✕ img', logo: '⬛ logo',
   h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3',

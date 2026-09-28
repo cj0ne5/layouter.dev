@@ -6,15 +6,20 @@ const TEMPLATES = [
       children: [
         { type: 'header', layout: 'flex', align: 'space-between', padding: '1rem', children: [{ type: 'img', size: 'icon', aspect: 'square' }, { type: 'nav' }] },
         {
-          type: 'section', layout: 'block', padding: '2rem',
-          children: [{ type: 'h1' }, { type: 'p', text: 'md' }]
-        },
-        {
-          type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr', gap: '1rem', padding: '2rem',
+          type: 'main', layout: 'block', padding: '1rem',
           children: [
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] }
+            {
+              type: 'section', layout: 'block', padding: '2rem',
+              children: [{ type: 'h1' }, { type: 'p', text: 'md' }]
+            },
+            {
+              type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr', gap: '1rem', padding: '2rem',
+              children: [
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] }
+              ]
+            }
           ]
         },
         { type: 'footer', layout: 'flex', align: 'space-between', padding: '1rem', children: [{ type: 'p' }, { type: 'nav' }] }
@@ -29,24 +34,29 @@ const TEMPLATES = [
       children: [
         { type: 'header', layout: 'flex', align: 'space-between', padding: '1rem', children: [{ type: 'img', size: 'icon', aspect: 'square' }, { type: 'nav' }] },
         {
-          type: 'section', layout: 'block', padding: '0',
+          type: 'main', layout: 'block', padding: '1rem',
           children: [
-            { type: 'img', size: 'lg', aspect: 'banner' },
-            { type: 'div', layout: 'block', padding: '2rem', children: [{ type: 'h1' }, { type: 'p', text: 'md' }, { type: 'button' }] }
+            {
+              type: 'section', layout: 'block', padding: '0',
+              children: [
+                { type: 'img', size: 'lg', aspect: 'banner' },
+                { type: 'div', layout: 'block', padding: '2rem', children: [{ type: 'h1' }, { type: 'p', text: 'md' }, { type: 'button' }] }
+              ]
+            },
+            {
+              type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr', gap: '1rem', padding: '2rem',
+              children: [
+                { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] },
+                { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] },
+                { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] },
+                { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] }
+              ]
+            },
+            {
+              type: 'section', layout: 'block', padding: '2rem',
+              children: [{ type: 'h2' }, { type: 'p' }, { type: 'button' }]
+            }
           ]
-        },
-        {
-          type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr', gap: '1rem', padding: '2rem',
-          children: [
-            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] },
-            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] },
-            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] },
-            { type: 'div', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p' }] }
-          ]
-        },
-        {
-          type: 'section', layout: 'block', padding: '2rem',
-          children: [{ type: 'h2' }, { type: 'p' }, { type: 'button' }]
         },
         { type: 'footer', layout: 'flex', align: 'center', padding: '1rem', children: [{ type: 'p' }] }
       ]
@@ -60,28 +70,33 @@ const TEMPLATES = [
       children: [
         { type: 'header', layout: 'flex', align: 'space-between', padding: '1rem', children: [{ type: 'img', size: 'icon', aspect: 'square' }, { type: 'nav' }] },
         {
-          type: 'section', layout: 'grid', colTemplate: '1fr 250px', gap: '1rem', padding: '2rem',
+          type: 'main', layout: 'block', padding: '1rem',
           children: [
             {
-              type: 'article', padding: '0.5rem',
-              children: [{ type: 'img', size: 'lg', aspect: 'landscape' }, { type: 'h1' }, { type: 'p', text: 'md' }]
+              type: 'section', layout: 'grid', colTemplate: '1fr 250px', gap: '1rem', padding: '2rem',
+              children: [
+                {
+                  type: 'article', padding: '0.5rem',
+                  children: [{ type: 'img', size: 'lg', aspect: 'landscape' }, { type: 'h1' }, { type: 'p', text: 'md' }]
+                },
+                {
+                  type: 'div', layout: 'block', padding: '0.5rem',
+                  children: [
+                    { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] },
+                    { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] }
+                  ]
+                }
+              ]
             },
             {
-              type: 'div', layout: 'block', padding: '0.5rem',
+              type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr 1fr', gap: '1rem', padding: '2rem',
               children: [
-                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] },
-                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }] }
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'portrait' }, { type: 'h2' }, { type: 'p' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'portrait' }, { type: 'h2' }, { type: 'p' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'portrait' }, { type: 'h2' }, { type: 'p' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'portrait' }, { type: 'h2' }, { type: 'p' }] }
               ]
             }
-          ]
-        },
-        {
-          type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr 1fr', gap: '1rem', padding: '2rem',
-          children: [
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'portrait' }, { type: 'h2' }, { type: 'p' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'portrait' }, { type: 'h2' }, { type: 'p' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'portrait' }, { type: 'h2' }, { type: 'p' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'portrait' }, { type: 'h2' }, { type: 'p' }] }
           ]
         },
         { type: 'footer', layout: 'flex', align: 'space-between', padding: '1rem', children: [{ type: 'p' }, { type: 'nav' }] }
@@ -97,16 +112,21 @@ const TEMPLATES = [
         { type: 'header', layout: 'flex', align: 'space-between', padding: '0.5rem',
           children: [{ type: 'img', size: 'icon', aspect: 'square' }, { type: 'nav', menuStyle: 'hamburger' }] },
         {
-          type: 'section', layout: 'block', padding: '2rem',
-          children: [{ type: 'h1' }, { type: 'p', text: 'md' }, { type: 'button' }]
-        },
-        {
-          type: 'section', layout: 'grid', colTemplate: '1fr 1fr', gap: '1rem', padding: '1rem',
+          type: 'main', layout: 'block', padding: '1rem',
           children: [
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'square' }, { type: 'h2' }, { type: 'p' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'square' }, { type: 'h2' }, { type: 'p' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'square' }, { type: 'h2' }, { type: 'p' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'square' }, { type: 'h2' }, { type: 'p' }] }
+            {
+              type: 'section', layout: 'block', padding: '2rem',
+              children: [{ type: 'h1' }, { type: 'p', text: 'md' }, { type: 'button' }]
+            },
+            {
+              type: 'section', layout: 'grid', colTemplate: '1fr 1fr', gap: '1rem', padding: '1rem',
+              children: [
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'square' }, { type: 'h2' }, { type: 'p' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'square' }, { type: 'h2' }, { type: 'p' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'square' }, { type: 'h2' }, { type: 'p' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'md', aspect: 'square' }, { type: 'h2' }, { type: 'p' }] }
+              ]
+            }
           ]
         },
         { type: 'footer', layout: 'flex', align: 'center', padding: '0.5rem', children: [{ type: 'p' }] }
@@ -122,16 +142,21 @@ const TEMPLATES = [
         { type: 'header', layout: 'flex', align: 'space-between', padding: '1rem',
           children: [{ type: 'img', size: 'icon', aspect: 'square' }, { type: 'nav' }] },
         {
-          type: 'section', layout: 'block', padding: '2rem',
+          type: 'main', layout: 'block', padding: '1rem',
           children: [
-            { type: 'h1' },
-            { type: 'div', layout: 'block', patternHint: 'progress', padding: '0', children: [] },
-            { type: 'h2' },
-            { type: 'input', showLabel: true },
-            { type: 'input', showLabel: true },
-            { type: 'input', showLabel: true },
-            { type: 'div', layout: 'flex', align: 'space-between', gap: '1rem', padding: '0',
-              children: [{ type: 'button' }, { type: 'button' }] }
+            {
+              type: 'section', layout: 'block', padding: '2rem',
+              children: [
+                { type: 'h1' },
+                { type: 'div', layout: 'block', patternHint: 'progress', padding: '0', children: [] },
+                { type: 'h2' },
+                { type: 'input', showLabel: true },
+                { type: 'input', showLabel: true },
+                { type: 'input', showLabel: true },
+                { type: 'div', layout: 'flex', align: 'space-between', gap: '1rem', padding: '0',
+                  children: [{ type: 'button' }, { type: 'button' }] }
+              ]
+            }
           ]
         },
         { type: 'footer', layout: 'flex', align: 'center', padding: '1rem', children: [{ type: 'p' }] }
@@ -147,27 +172,32 @@ const TEMPLATES = [
         { type: 'header', layout: 'flex', align: 'space-between', padding: '1rem',
           children: [{ type: 'img', size: 'icon', aspect: 'square' }, { type: 'nav' }] },
         {
-          type: 'section', layout: 'block', padding: '2rem',
+          type: 'main', layout: 'block', padding: '1rem',
           children: [
-            { type: 'h1' },
-            { type: 'div', layout: 'flex', gap: '0.5rem', padding: '0',
-              children: [{ type: 'input' }, { type: 'button' }] }
+            {
+              type: 'section', layout: 'block', padding: '2rem',
+              children: [
+                { type: 'h1' },
+                { type: 'div', layout: 'flex', gap: '0.5rem', padding: '0',
+                  children: [{ type: 'input' }, { type: 'button' }] }
+              ]
+            },
+            {
+              type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr', gap: '1rem', padding: '2rem',
+              children: [
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
+                { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] }
+              ]
+            },
+            {
+              type: 'section', layout: 'block', padding: '1rem',
+              children: [{ type: 'nav', menuStyle: 'pagination' }]
+            }
           ]
-        },
-        {
-          type: 'section', layout: 'grid', colTemplate: '1fr 1fr 1fr', gap: '1rem', padding: '2rem',
-          children: [
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] },
-            { type: 'article', padding: '0.5rem', children: [{ type: 'img', size: 'sm', aspect: 'landscape' }, { type: 'h2' }, { type: 'p' }, { type: 'button' }] }
-          ]
-        },
-        {
-          type: 'section', layout: 'block', padding: '1rem',
-          children: [{ type: 'nav', menuStyle: 'pagination' }]
         },
         { type: 'footer', layout: 'flex', align: 'space-between', padding: '1rem',
           children: [{ type: 'p' }, { type: 'nav' }] }
