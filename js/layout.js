@@ -1,20 +1,3 @@
-// Parse a CSS fr template string into pixel widths
-function parseTemplate(template, totalPx, gap) {
-  const parts = template.trim().split(/\s+/);
-  const n = parts.length;
-  const totalGap = gap * (n - 1);
-  const available = Math.max(totalPx - totalGap, 0);
-  const fixedTotal = parts.reduce((sum, p) => p.endsWith('px') ? sum + parseFloat(p) : sum, 0);
-  const frAvailable = Math.max(available - fixedTotal, 0);
-  const totalFr = parts.reduce((sum, p) => p.endsWith('fr') ? sum + parseFloat(p) : sum, 0);
-  return parts.map(p => {
-    if (p.endsWith('px')) return parseFloat(p);
-    if (p.endsWith('fr') && totalFr > 0) return (parseFloat(p) / totalFr) * frAvailable;
-    return available / n;
-  });
-}
-
-
 function computeOffsets(sizes, gap) {
   const offsets = [0];
   for (let i = 0; i < sizes.length - 1; i++) offsets.push(offsets[i] + sizes[i] + gap);
@@ -22,6 +5,10 @@ function computeOffsets(sizes, gap) {
 }
 
 function layoutTree(node, x, y, w) {
+  if (node.type === 'page') floatOverflowBottom = 0;
+  // Floats from an enclosing block flow, handed down only to direct block-flow children
+  const inheritedFloats = pendingFloatCtx;
+  pendingFloatCtx = null;
   node._x = x; node._y = y; node._w = w;
 
   const pad = PADDING[node.padding] || 0;
@@ -155,16 +142,15 @@ function layoutTree(node, x, y, w) {
     }
 
     if (floatImg) {
-      const fracs = { icon: 0.12, sm: 0.28, md: 0.38, lg: 0.52 };
-      const imgW = Math.round(innerW * (fracs[floatImg.size] || 0.38));
-      const imgH = Math.round(imgW * ({ portrait: 1.4, square: 1, landscape: 0.55, banner: 0.38 }[floatImg.aspect] || 0.55));
+      const imgW = Math.round(innerW * (IMG_INLINE_WIDTH[floatImg.size] || IMG_INLINE_WIDTH.md));
+      const imgH = Math.round(imgW * (IMG_ASPECT[floatImg.aspect] || IMG_ASPECT.landscape));
       const effectiveFloat = (floatImg.float && floatImg.float !== 'none') ? floatImg.float : 'left';
       floatImg._w = imgW; floatImg._h = imgH; floatImg._y = y + pad;
       floatImg._x = effectiveFloat === 'left' ? innerX : innerX + innerW - imgW;
       floatImg._floated = true;
       floatImg._effectiveFloat = effectiveFloat;
       node._h = Math.max(imgH, textH) + pad * 2;
-      const gap = 10;
+      const gap = FLOAT_MARGIN.side;
       const textX = effectiveFloat === 'left' ? floatImg._x + floatImg._w + gap : innerX;
       const textRight = effectiveFloat === 'left' ? innerX + innerW : floatImg._x - gap;
       layoutInlineFragments(textX, Math.max(0, textRight - textX), y + pad, textH);
@@ -186,16 +172,15 @@ function layoutTree(node, x, y, w) {
   }
 
   if (node.type === 'img') {
-    const aspectRatio = { portrait: 1.4, square: 1, landscape: 0.55, banner: 0.38 }[node.aspect] || 0.55;
-    if (node.display === 'inline') {
-      const frac = { icon: 0.1, sm: 0.3, md: 0.45, lg: 0.65 }[node.size] || 0.45;
-      node._w = Math.round(w * frac);
-    } else {
-      // Block: size controls displayed width; image is centered in its cell
-      const frac = { icon: 0.12, sm: 0.35, md: 0.65, lg: 1.0 }[node.size] || 0.65;
-      node._w = Math.round(w * frac);
-      node._x = Math.round(x + (w - node._w) / 2);
+    const aspectRatio = IMG_ASPECT[node.aspect] || IMG_ASPECT.landscape;
+    // Widths are a percentage of the containing block, as in the exported CSS.
+    // Block images sit at the start (left) edge, like in a browser.
+    if (node.display !== 'inline' && node.size === 'icon') {
+      node._h = IMG_ICON_H;
+      node._w = Math.round(IMG_ICON_H / aspectRatio);
+      return;
     }
+    node._w = Math.round(w * imgWidthFrac(node));
     node._h = Math.round(node._w * aspectRatio);
     return;
   }
@@ -221,41 +206,16 @@ function layoutTree(node, x, y, w) {
     return;
   }
 
-  if (!node.children || node.children.length === 0) {
+  const layout = node.layout || 'block';
+
+  // Empty grids still lay out, so their rows and named areas are visible drop targets
+  if ((!node.children || node.children.length === 0) && layout !== 'grid') {
     node._h = 60;
     return;
   }
 
-  const layout = node.layout || 'block';
-
   if (layout === 'grid') {
-      const defaultCols = node.columns || 2;
-      const template = node.colTemplate || Array(defaultCols).fill('1fr').join(' ');
-      const colWidths = parseTemplate(template, innerW, gap);
-      const actualCols = colWidths.length;
-      const colOffsets = computeOffsets(colWidths, gap);
-
-      let curY = y + pad;
-      const rows = Math.ceil(node.children.length / actualCols);
-
-      for (let r = 0; r < rows; r++) {
-        let rowH = 0;
-        for (let c = 0; c < actualCols; c++) {
-          const i = r * actualCols + c;
-          if (i >= node.children.length) break;
-          layoutTree(node.children[i], innerX + colOffsets[c], curY, colWidths[c]);
-          rowH = Math.max(rowH, node.children[i]._h);
-        }
-        for (let c = 0; c < actualCols; c++) {
-          const i = r * actualCols + c;
-          if (i < node.children.length && node.children[i].type !== 'img') node.children[i]._h = rowH;
-        }
-        curY += rowH + (r < rows - 1 ? gap : 0);
-      }
-      node._h = curY - y + pad;
-      node._colWidths = colWidths;
-      node._colOffsets = colOffsets;
-      node._innerX = innerX;
+    node._h = layoutGrid(node, innerX, y + pad, innerW, gap) + pad * 2;
 
   } else if (layout === 'flex') {
     const flexGap = gap;
@@ -276,12 +236,11 @@ function layoutTree(node, x, y, w) {
 
       // Per-child slot widths — sized to the element's actual displayed width
       // so the flex loop doesn't leave dead space after small elements.
-      const BLOCK_IMG_FRAC = { icon: 0.12, sm: 0.35, md: 0.65, lg: 1.0 };
       const slotW = node.children.map(c => {
         if (c.type === 'nav' && c.menuStyle === 'hamburger') return 40;
-        if (c.type === 'img' && c.display !== 'inline') {
-          const frac = BLOCK_IMG_FRAC[c.size] || 0.65;
-          return Math.min(Math.round(fullChildW * frac), childW);
+        if (c.type === 'img') { // flex items are blockified, so inline imgs size the same way
+          layoutTree(c, 0, 0, innerW);
+          return c._w;
         }
         return childW;
       });
@@ -299,15 +258,14 @@ function layoutTree(node, x, y, w) {
       for (let i = 0; i < n; i++) {
         const child = node.children[i];
         const sw = slotW[i];
-        const isBlockImg = child.type === 'img' && child.display !== 'inline';
+        const isBlockImg = child.type === 'img';
         const isHamburger = child.type === 'nav' && child.menuStyle === 'hamburger';
-        layoutTree(child, cx, cy, isBlockImg ? fullChildW : sw);
+        layoutTree(child, cx, cy, isBlockImg ? innerW : sw);
         if (isBlockImg) {
           // Slot is pre-sized to the img width, so cx is already the correct position.
-          // Clamp _w as a safety net; alignment is expressed by where cx starts.
-          child._w = Math.min(child._w, childW);
+          child._w = sw;
+          if (child.size !== 'icon') child._h = Math.round(sw * (IMG_ASPECT[child.aspect] || IMG_ASPECT.landscape));
           child._x = cx;
-          child._h = Math.round(child._w * ({ portrait: 1.4, square: 1, landscape: 0.55, banner: 0.38 }[child.aspect] || 0.55));
         } else if (isHamburger) {
           child._w = 40; child._h = 40;
           child._x = cx; // slot is already 40px, so just pin to leading edge
@@ -318,19 +276,165 @@ function layoutTree(node, x, y, w) {
       for (const child of node.children) {
         const fixedH = child.type === 'img' || (child.type === 'nav' && child.menuStyle === 'hamburger');
         if (!fixedH) child._h = maxH;
+        else child._y = cy + (maxH - child._h) / 2; // align-items: center
       }
       node._h = maxH + pad * 2;
     }
 
   } else {
-    // stack (vertical)
-    let cy = y + pad;
-    for (let i = 0; i < node.children.length; i++) {
-      const child = node.children[i];
-      layoutTree(child, innerX, cy, innerW);
-      cy += child._h + (i < node.children.length - 1 ? gap : 0);
-    }
+    // Normal flow (see layoutBlockFlow)
+    const cy = layoutBlockFlow(node, innerX, y + pad, innerW, pad, inheritedFloats);
     node._h = cy - y + pad;
   }
 }
 
+
+function isInlineLevel(node) {
+  return node.type === 'img' && node.display === 'inline' && (!node.float || node.float === 'none');
+}
+
+function isFloatedImg(node) {
+  return node.type === 'img' && node.display === 'inline' && (node.float === 'left' || node.float === 'right');
+}
+
+function imgWidthFrac(node) {
+  return node.display === 'inline'
+    ? (IMG_INLINE_WIDTH[node.size] || IMG_INLINE_WIDTH.md)
+    : (IMG_BLOCK_WIDTH[node.size] || IMG_BLOCK_WIDTH.md);
+}
+
+// Lowest float edge seen during this layout pass, so the canvas can grow to show
+// floats that stick out of their (non-containing) parents.
+let floatOverflowBottom = 0;
+let pendingFloatCtx = null;
+
+// Plain block containers share their parent's float context (their content flows
+// around outside floats). Everything else is a block formatting context or a
+// replaced element and avoids floats as a whole box.
+function sharesFloatContext(node) {
+  return ['main', 'section', 'header', 'footer', 'div', 'article'].includes(node.type)
+    && (node.layout || 'block') === 'block' && !node.patternHint;
+}
+
+// Normal block flow, mirroring the browser:
+//  - block children stack with no gap; only the exported default
+//    margin-bottom of h1–h3 / p adds space
+//  - inline images share line boxes (vertical-align: middle) and wrap
+//  - floated images go to the left/right edge; following content flows beside them,
+//    and the parent does NOT grow to contain them
+// Returns the y just below the in-flow content.
+function layoutBlockFlow(node, innerX, startY, innerW, pad, inheritedFloats) {
+  const kids = node.children;
+  const floats = inheritedFloats || [];
+  const innerR = innerX + innerW;
+
+  // Free horizontal band [l, r] for content between y and y + h
+  const edgesAt = (y, h) => {
+    let l = innerX, r = innerR;
+    for (const f of floats) {
+      if (f.top < y + h && f.bottom > y) {
+        if (f.side === 'left') l = Math.max(l, f.right);
+        else r = Math.min(r, f.left);
+      }
+    }
+    return { l, r };
+  };
+  // Next y where some float ends (to move content down past floats)
+  const nextFloatEnd = (y) => {
+    const ends = floats.map(f => f.bottom).filter(b => b > y);
+    return ends.length ? Math.min(...ends) : null;
+  };
+
+  let cy = startY;
+  let line = null; // { y, items, w }
+
+  const flushLine = () => {
+    if (!line) return;
+    const lineH = Math.max(...line.items.map(c => c._h));
+    let cx = edgesAt(line.y, lineH).l;
+    for (const c of line.items) {
+      c._x = cx;
+      c._y = line.y + (lineH - c._h) / 2;
+      cx += c._w + INLINE_GAP;
+    }
+    cy = line.y + lineH;
+    line = null;
+  };
+
+  kids.forEach((child, i) => {
+    if (isFloatedImg(child)) {
+      flushLine();
+      layoutTree(child, innerX, cy, innerW);
+      const need = child._w + FLOAT_MARGIN.side;
+      let fy = cy;
+      for (;;) {
+        const { l, r } = edgesAt(fy, child._h);
+        const next = nextFloatEnd(fy);
+        if (r - l >= need || next === null) {
+          child._x = child.float === 'left' ? l : r - child._w;
+          break;
+        }
+        fy = next;
+      }
+      child._y = fy;
+      floats.push({
+        side: child.float, top: fy,
+        bottom: fy + child._h + FLOAT_MARGIN.bottom,
+        right: child._x + child._w + FLOAT_MARGIN.side,
+        left: child._x - FLOAT_MARGIN.side,
+      });
+      floatOverflowBottom = Math.max(floatOverflowBottom, fy + child._h + FLOAT_MARGIN.bottom);
+      return;
+    }
+
+    if (isInlineLevel(child)) {
+      layoutTree(child, innerX, cy, innerW);
+      if (line) {
+        const { l, r } = edgesAt(line.y, Math.max(child._h, ...line.items.map(c => c._h)));
+        if (l + line.w + INLINE_GAP + child._w > r) flushLine();
+      }
+      if (!line) {
+        let ly = cy;
+        for (;;) {
+          const { l, r } = edgesAt(ly, child._h);
+          const next = nextFloatEnd(ly);
+          if (r - l >= child._w || next === null) break;
+          ly = next;
+        }
+        line = { y: ly, items: [], w: -INLINE_GAP };
+      }
+      line.items.push(child);
+      line.w += INLINE_GAP + child._w;
+      return;
+    }
+
+    flushLine();
+    if (sharesFloatContext(child)) {
+      // Full-width box; its own content flows around the floats
+      pendingFloatCtx = floats;
+      layoutTree(child, innerX, cy, innerW);
+      pendingFloatCtx = null;
+    } else if (child.type === 'img') {
+      // Replaced element: sits beside floats if it fits, otherwise drops below them
+      layoutTree(child, innerX, cy, innerW);
+      let iy = cy, l = innerX;
+      for (;;) {
+        const e = edgesAt(iy, child._h);
+        const next = nextFloatEnd(iy);
+        if (e.r - e.l >= child._w || next === null) { l = e.l; break; }
+        iy = next;
+      }
+      child._x = l; child._y = iy;
+      cy = iy;
+    } else {
+      // Text and other boxes are squeezed into the free band beside floats
+      const { l, r } = edgesAt(cy, 1);
+      layoutTree(child, l, cy, r - l);
+    }
+    cy += child._h;
+    const isLastWithoutPad = i === kids.length - 1 && pad === 0; // margin collapses out of the parent
+    if (['h1', 'h2', 'h3', 'p'].includes(child.type) && !isLastWithoutPad) cy += TEXT_MARGIN_BOTTOM;
+  });
+  flushLine();
+  return cy;
+}

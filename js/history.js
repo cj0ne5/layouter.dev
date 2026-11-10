@@ -14,7 +14,8 @@ function stripInternal(node) {
   delete clean._x; delete clean._y; delete clean._w; delete clean._h;
   delete clean._colWidths; delete clean._colOffsets;
   delete clean._rowHeights; delete clean._rowOffsets;
-  delete clean._innerX;
+  delete clean._innerX; delete clean._innerY;
+  delete clean._gridAreas; delete clean._gridCells; delete clean._gridInvalid;
   delete clean._floated;
   delete clean._effectiveFloat;
   delete clean._inlineFragments;

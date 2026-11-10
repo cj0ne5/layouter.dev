@@ -34,7 +34,7 @@ function computeDropTarget(mx, my, excludeNode, incomingType) {
     if (!CONTAINER_TYPES.includes(n.type)) continue;
     if (mx < h.x || mx > h.x + h.w || my < h.y || my > h.y + h.h) continue;
     const area = h.w * h.h;
-    if (area < bestArea) { container = n; bestArea = area; bestH = h; }
+    if (area <= bestArea) { container = n; bestArea = area; bestH = h; }
   }
 
   // Edge-zone: if cursor is within EDGE_ZONE px of a non-page container's
@@ -105,7 +105,20 @@ function insertPosInContainer(container, mx, my, excludeNode) {
     ? allChildren.length
     : visible[viPos].origIdx;
 
-  return { parent: container, index: realIdx };
+  const result = { parent: container, index: realIdx };
+
+  // Dropping onto an empty named grid area places the element there
+  if (container.layout === 'grid') {
+    const area = gridAreaAt(container, mx, my);
+    const taken = area && allChildren.some(c => c !== excludeNode && c.gridArea === area);
+    if (area && !taken) result.area = area;
+  }
+  return result;
+}
+
+function applyDropArea(node, target) {
+  if (target.area) node.gridArea = target.area;
+  else delete node.gridArea;
 }
 
 function performCanvasDrop(mx, my) {
@@ -133,6 +146,7 @@ function performCanvasDrop(mx, my) {
 
   if (!target.parent.children) target.parent.children = [];
   target.parent.children.splice(Math.max(0, insertIndex), 0, canvasDragNode);
+  applyDropArea(canvasDragNode, target);
   selectedNode = canvasDragNode;
 }
 
@@ -205,7 +219,7 @@ function setupCanvasEvents() {
     for (const h of hitBoxes) {
       if (mx >= h.x && mx <= h.x + h.w && my >= h.y && my <= h.y + h.h) {
         const area = h.w * h.h;
-        if (area < bestArea) { best = h; bestArea = area; }
+        if (area <= bestArea) { best = h; bestArea = area; }
       }
     }
     mdPos = { sx: e.clientX, sy: e.clientY };
@@ -350,6 +364,7 @@ function setupDragDrop() {
 
     if (!target.parent.children) target.parent.children = [];
     target.parent.children.splice(target.index, 0, newNode);
+    applyDropArea(newNode, target);
 
     selectedNode = newNode;
     dropIndicator = null;

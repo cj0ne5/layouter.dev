@@ -2,12 +2,14 @@ function updatePropsPanel() {
   const noSel = document.getElementById('no-selection');
   const fields = document.getElementById('prop-fields');
   if (!selectedNode) {
+    document.getElementById('props').classList.remove('wide');
     noSel.style.display = ''; fields.style.display = 'none'; return;
   }
   noSel.style.display = 'none'; fields.style.display = '';
   fields.innerHTML = '';
 
   const n = selectedNode;
+  document.getElementById('props').classList.toggle('wide', n.layout === 'grid');
 
   if (n.type === 'page') {
     addPropLabel(fields, '‹body›');
@@ -21,6 +23,7 @@ function updatePropsPanel() {
   }
 
   addPropLabel(fields, `‹${n.type}›`);
+  addGridAreaPicker(fields, n);
 
   // Nav menu style
   if (n.type === 'nav') {
@@ -50,27 +53,17 @@ function updatePropsPanel() {
   if (['main', 'section', 'header', 'footer', 'div', 'article'].includes(n.type)) {
     addBtnGroup(fields, 'Layout', ['block', 'flex', 'grid'],
       n.layout || 'block',
-      v => { n.layout = v; render(); updatePropsPanel(); });
+      v => {
+        n.layout = v;
+        if (v === 'grid' && !n.colTemplate && !n.areas) n.colTemplate = defaultColTemplate(n);
+        render(); updatePropsPanel();
+      });
   }
 
-  // Grid-specific: column presets and areas
+  // Grid-specific: presets, interactive area/track editor and a CSS text box
   if (n.layout === 'grid') {
-    const defaultCols = n.columns || 3;
-    const currentTemplate = n.colTemplate || Array(defaultCols).fill('1fr').join(' ');
-    const colPresets = [
-      { label: '1 col', value: '1fr' },
-      { label: '2 equal', value: '1fr 1fr' },
-      { label: '3 equal', value: '1fr 1fr 1fr' },
-      { label: '4 equal', value: '1fr 1fr 1fr 1fr' },
-      { label: 'sidebar + main', value: '250px 1fr' },
-      { label: 'main + sidebar', value: '1fr 250px' },
-      { label: 'holy grail', value: '250px 1fr 250px' },
-    ];
-    addPresetGroup(fields, 'Columns', colPresets, currentTemplate, v => {
-      n.colTemplate = v;
-      delete n.columns;
-      render();
-    });
+    addGridPresets(fields, n);
+    addGridEditor(fields, n);
   }
 
   // Flex align
@@ -395,4 +388,285 @@ function removeNode(tree, target) {
     if (removeNode(child, target)) return true;
   }
   return false;
+}
+
+// ---------- Grid editing ----------
+
+const GRID_AREA_PRESETS = [
+  { label: "header / menu + main / footer", areas: ['head head', 'menu main', 'foot foot'], rowTemplate: '100px 1fr 200px', colTemplate: '200px 1fr' },
+  { label: 'holy grail (3 columns)', areas: ['head head head', 'nav main aside', 'foot foot foot'], rowTemplate: 'auto 1fr auto', colTemplate: '200px 1fr 200px' },
+  { label: 'hero + 2 cards', areas: ['hero hero', 'left right'], rowTemplate: '300px auto', colTemplate: '1fr 1fr' },
+];
+
+const GRID_COL_PRESETS = [
+  { label: '2 equal', value: '1fr 1fr' },
+  { label: '3 equal', value: '1fr 1fr 1fr' },
+  { label: '4 equal', value: '1fr 1fr 1fr 1fr' },
+  { label: 'sidebar + main', value: '250px 1fr' },
+  { label: 'main + sidebar', value: '1fr 250px' },
+  { label: 'holy grail', value: '250px 1fr 250px' },
+];
+
+function addGridPresets(fields, n) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+  group.innerHTML = '<label>Grid presets</label>';
+  const sel = document.createElement('select');
+  sel.innerHTML = '<option value="">Choose a preset…</option>' +
+    '<optgroup label="Named areas">' +
+    GRID_AREA_PRESETS.map((p, i) => `<option value="a${i}">${p.label}</option>`).join('') +
+    '</optgroup><optgroup label="Columns only">' +
+    GRID_COL_PRESETS.map((p, i) => `<option value="c${i}">${p.label} — ${p.value}</option>`).join('') +
+    '</optgroup>';
+  sel.onchange = () => {
+    const v = sel.value;
+    if (!v) return;
+    pushHistoryState();
+    const idx = parseInt(v.slice(1));
+    if (v[0] === 'a') {
+      const p = GRID_AREA_PRESETS[idx];
+      n.areas = p.areas.slice(); n.rowTemplate = p.rowTemplate; n.colTemplate = p.colTemplate;
+      // Drop stale area assignments; place existing children into the new areas in order
+      const names = p.areas.join(' ').split(/\s+/).filter((x, i, arr) => x !== '.' && arr.indexOf(x) === i);
+      (n.children || []).forEach((c, i) => { if (names[i]) c.gridArea = names[i]; else delete c.gridArea; });
+    } else {
+      n.colTemplate = GRID_COL_PRESETS[idx].value;
+      delete n.rowTemplate; delete n.areas; delete n.columns;
+      (n.children || []).forEach(c => delete c.gridArea);
+    }
+    render();
+    updatePropsPanel();
+  };
+  group.appendChild(sel);
+  fields.appendChild(group);
+}
+
+// Widget state <-> node
+function gridEditorModel(n) {
+  const area = n.areas && n.areas.length ? n.areas.map(areaRowCells) : [];
+  const rows = safeExpandTracks(n.rowTemplate || '');
+  const cols = safeExpandTracks(n.colTemplate || (n.areas ? '' : defaultColTemplate(n)));
+  const nRows = Math.max(area.length, rows.length, 1);
+  const nCols = Math.max(...area.map(r => r.length), cols.length, 1);
+  const cells = [];
+  for (let r = 0; r < nRows; r++) {
+    cells.push([]);
+    for (let c = 0; c < nCols; c++) cells[r].push((area[r] && area[r][c]) || '.');
+  }
+  return {
+    cells,
+    rows: Array.from({ length: nRows }, (_, r) => rows[r] || 'auto'),
+    cols: Array.from({ length: nCols }, (_, c) => cols[c] || 'auto'),
+  };
+}
+
+function applyGridEditorModel(n, m) {
+  const hasAreas = m.cells.some(row => row.some(c => c !== '.'));
+  if (hasAreas) n.areas = m.cells.map(row => row.join(' '));
+  else delete n.areas;
+  n.colTemplate = m.cols.join(' ');
+  if (!hasAreas && m.rows.length === 1 && m.rows[0] === 'auto') delete n.rowTemplate;
+  else n.rowTemplate = m.rows.join(' ');
+  delete n.columns;
+}
+
+function addGridEditor(fields, n) {
+  const group = document.createElement('div');
+  group.className = 'prop-group grid-editor';
+  group.innerHTML = `<label>Grid areas &amp; track sizes</label>
+    <div class="prop-hint grid-editor-hint">Type an area name in each cell (blank = <code>.</code>). Repeat a name to span cells. Row sizes on the right, column sizes below.</div>`;
+  const table = document.createElement('div');
+  table.className = 'grid-cells';
+  const btns = document.createElement('div');
+  btns.className = 'btn-group grid-editor-btns';
+  const msg = document.createElement('div');
+  msg.className = 'grid-msg';
+  const cssLabel = document.createElement('label');
+  cssLabel.textContent = 'CSS (type or paste)';
+  cssLabel.style.marginTop = '10px';
+  const css = document.createElement('textarea');
+  css.className = 'grid-css';
+  css.spellcheck = false;
+  css.rows = 7;
+  const cssMsg = document.createElement('div');
+  cssMsg.className = 'grid-msg';
+  group.append(table, btns, msg, cssLabel, css, cssMsg);
+  fields.appendChild(group);
+
+  let model = gridEditorModel(n);
+  // One undo step per focused editing session
+  let historyPushed = false;
+  const beginEdit = () => { if (!historyPushed) { pushHistoryState(); historyPushed = true; } };
+  const endEdit = () => { historyPushed = false; };
+
+  function cssText() {
+    return gridTemplateDecls(n).map(d => d + ';').join('\n');
+  }
+
+  function showStatus() {
+    const cfg = getGridConfig(n);
+    msg.textContent = cfg.invalid ? '⚠ ' + cfg.invalid + ' A browser would ignore the whole grid template.' : '';
+    msg.classList.toggle('error', !!cfg.invalid);
+  }
+
+  let cellInputs = [];
+  function recolorCells() {
+    const names = [];
+    model.cells.forEach(row => row.forEach(c => { if (c !== '.' && !names.includes(c)) names.push(c); }));
+    for (const { inp, r, c } of cellInputs) {
+      const name = model.cells[r][c];
+      inp.style.background = name === '.' ? '' : areaColor(name, names);
+    }
+  }
+
+  function commit() {
+    applyGridEditorModel(n, model);
+    recolorCells();
+    if (document.activeElement !== css) { css.value = cssText(); cssMsg.textContent = ''; }
+    showStatus();
+    render();
+  }
+
+  function sizeInput(value, onInput) {
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'grid-size';
+    inp.value = value === 'auto' ? '' : value;
+    inp.placeholder = 'auto';
+    inp.addEventListener('focus', () => inp.select());
+    inp.addEventListener('blur', endEdit);
+    inp.addEventListener('input', () => {
+      const v = inp.value.trim() || 'auto';
+      let ok = true;
+      try { if (expandTracks(v).length !== 1) ok = false; } catch (_) { ok = false; }
+      inp.classList.toggle('bad', !ok);
+      if (!ok) return;
+      beginEdit();
+      onInput(v);
+      commit();
+    });
+    return inp;
+  }
+
+  function buildTable() {
+    table.innerHTML = '';
+    const nCols = model.cols.length;
+    table.style.gridTemplateColumns = `repeat(${nCols}, minmax(0, 1fr)) 52px`;
+    cellInputs = [];
+
+    model.cells.forEach((row, r) => {
+      row.forEach((name, c) => {
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'grid-cell';
+        inp.value = name === '.' ? '' : name;
+        inp.placeholder = '.';
+        cellInputs.push({ inp, r, c });
+        inp.addEventListener('focus', () => inp.select());
+        inp.addEventListener('blur', endEdit);
+        inp.addEventListener('input', () => {
+          beginEdit();
+          const v = inp.value.replace(/['"\s]/g, '');
+          model.cells[r][c] = v === '' || /^\.+$/.test(v) ? '.' : v;
+          commit();
+        });
+        table.appendChild(inp);
+      });
+      table.appendChild(sizeInput(model.rows[r], v => { model.rows[r] = v; }));
+    });
+    model.cols.forEach((size, c) => {
+      table.appendChild(sizeInput(size, v => { model.cols[c] = v; }));
+    });
+    const corner = document.createElement('div');
+    corner.className = 'grid-corner';
+    corner.textContent = '↑ rows';
+    table.appendChild(corner);
+    recolorCells();
+  }
+
+  function addBtn(label, title, fn) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.title = title;
+    b.onclick = () => {
+      pushHistoryState();
+      fn();
+      applyGridEditorModel(n, model);
+      model = gridEditorModel(n);
+      buildTable();
+      commit();
+    };
+    btns.appendChild(b);
+  }
+  addBtn('+ row', 'Add a row', () => {
+    model.cells.push(model.cols.map(() => '.'));
+    model.rows.push('auto');
+  });
+  addBtn('− row', 'Remove the last row', () => {
+    if (model.rows.length <= 1) return;
+    model.cells.pop(); model.rows.pop();
+  });
+  addBtn('+ col', 'Add a column', () => {
+    model.cells.forEach(row => row.push('.'));
+    model.cols.push('1fr');
+  });
+  addBtn('− col', 'Remove the last column', () => {
+    if (model.cols.length <= 1) return;
+    model.cells.forEach(row => row.pop()); model.cols.pop();
+  });
+
+  css.value = cssText();
+  css.addEventListener('blur', () => {
+    endEdit();
+    try { parseGridCSS(css.value); css.value = cssText(); cssMsg.textContent = ''; css.classList.remove('bad'); } catch (_) { /* keep the user's text so they can fix it */ }
+  });
+  css.addEventListener('input', () => {
+    let parsed;
+    try {
+      parsed = parseGridCSS(css.value);
+    } catch (err) {
+      cssMsg.textContent = '⚠ ' + err.message;
+      cssMsg.classList.add('error');
+      css.classList.add('bad');
+      return;
+    }
+    beginEdit();
+    cssMsg.textContent = '✓ applied';
+    cssMsg.classList.remove('error');
+    css.classList.remove('bad');
+    if (parsed.areas) n.areas = parsed.areas; else delete n.areas;
+    if (parsed.rowTemplate) n.rowTemplate = parsed.rowTemplate; else delete n.rowTemplate;
+    if (parsed.colTemplate) n.colTemplate = parsed.colTemplate; else delete n.colTemplate;
+    if (!n.colTemplate && !n.areas) n.colTemplate = 'auto';
+    if (parsed.gap !== undefined) n.gap = parsed.gap;
+    delete n.columns;
+    model = gridEditorModel(n);
+    buildTable();
+    showStatus();
+    render();
+  });
+
+  buildTable();
+  showStatus();
+}
+
+// For children of a grid container: choose which named area they occupy
+function addGridAreaPicker(fields, n) {
+  const parent = findParent(pageTree, n);
+  if (!parent || parent.layout !== 'grid') return;
+  const names = gridAreaNames(parent);
+  if (!names.length && !n.gridArea) return;
+  const current = n.gridArea || 'auto';
+  addBtnGroup(fields, 'grid-area', ['auto', ...names], names.includes(current) ? current : 'auto', v => {
+    if (v === 'auto') delete n.gridArea;
+    else {
+      // Only one element per area: bump whoever was there back to auto-placement
+      (parent.children || []).forEach(c => { if (c !== n && c.gridArea === v) delete c.gridArea; });
+      n.gridArea = v;
+    }
+    render();
+  });
+  if (n.gridArea && !names.includes(n.gridArea)) {
+    addHint(fields, `The parent grid has no area named "${n.gridArea}", so this element is auto-placed.`);
+  }
 }

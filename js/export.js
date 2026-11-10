@@ -24,7 +24,7 @@ function exportHTML() {
   }
 
   // --- HTML generator ---
-  function nodeToHTML(node, depth = 0) {
+  function nodeToHTML(node, depth = 0, parent = null) {
     const ind = '  '.repeat(depth);
 
     function inlineNodeToHTML(inlineNode) {
@@ -56,7 +56,7 @@ function exportHTML() {
     };
     const tag = node.type in tagMap ? tagMap[node.type] : 'div';
     if (!tag) {
-      return (node.children || []).map(c => nodeToHTML(c, depth)).join('\n');
+      return (node.children || []).map(c => nodeToHTML(c, depth, node)).join('\n');
     }
 
     // Build per-element CSS declarations
@@ -64,8 +64,7 @@ function exportHTML() {
 
     if (node.layout === 'grid') {
       decls.push('display: grid');
-      const cols = node.colTemplate || `repeat(${node.columns || 3}, 1fr)`;
-      decls.push(`grid-template-columns: ${cols}`);
+      decls.push(...gridTemplateDecls(node, '    '));
       if (node.gap && node.gap !== '0') decls.push(`gap: ${node.gap}`);
     } else if (node.layout === 'flex') {
       decls.push('display: flex');
@@ -75,6 +74,10 @@ function exportHTML() {
       if (node.gap && node.gap !== '0') decls.push(`gap: ${node.gap}`);
     }
 
+    if (parent && parent.layout === 'grid' && node.gridArea && gridAreaNames(parent).includes(node.gridArea)) {
+      decls.push(`grid-area: ${node.gridArea}`);
+    }
+
     if (node.padding && node.padding !== '0') decls.push(`padding: ${node.padding}`);
 
     if (['p', 'h1', 'h2', 'h3'].includes(node.type) && node.align && node.align !== 'left') {
@@ -82,12 +85,11 @@ function exportHTML() {
     }
 
     if (node.type === 'img') {
-      const aspectRatio = { portrait: '3 / 4', square: '1', landscape: '4 / 3', banner: '8 / 3' }[node.aspect] || '4 / 3';
+      const aspectRatio = IMG_ASPECT_CSS[node.aspect] || IMG_ASPECT_CSS.landscape;
       if (node.display === 'inline') {
-        const sizeW = { icon: '10%', sm: '30%', md: '45%', lg: '65%' };
         decls.push('display: inline-block');
         decls.push('vertical-align: middle');
-        decls.push(`width: ${sizeW[node.size] || '45%'}`);
+        decls.push(`width: ${Math.round(imgWidthFrac(node) * 100)}%`);
         decls.push(`aspect-ratio: ${aspectRatio}`);
         if (node.float && node.float !== 'none') {
           decls.push(`float: ${node.float}`);
@@ -96,10 +98,13 @@ function exportHTML() {
       } else if (node.size === 'icon') {
         // Explicit width+height so the grey background shows even when src is missing.
         // (width: auto on a broken img computes to 0 — invisible.)
-        const [wr, hr] = { portrait: [3, 4], square: [1, 1], landscape: [4, 3] }[node.aspect] || [4, 3];
+        const ratio = IMG_ASPECT[node.aspect] || IMG_ASPECT.landscape;
         decls.push(`height: 2.5rem`);
-        decls.push(`width: ${+(2.5 * wr / hr).toFixed(2)}rem`);
+        decls.push(`width: ${+(2.5 / ratio).toFixed(2)}rem`);
       } else {
+        // lg = 100%, already set by the global img rule
+        const frac = imgWidthFrac(node);
+        if (frac < 1) decls.push(`width: ${Math.round(frac * 100)}%`);
         decls.push(`aspect-ratio: ${aspectRatio}`);
       }
     }
@@ -114,14 +119,14 @@ function exportHTML() {
 
     if (node.type === 'input') {
       if (node.showLabel) {
-        return `${ind}<label>Label <input type="text" placeholder="Enter text"></label>`;
+        return `${ind}<label${classAttr}>Label <input type="text" placeholder="Enter text"></label>`;
       }
-      return `${ind}<input type="text" placeholder="Enter text">`;
+      return `${ind}<input type="text" placeholder="Enter text"${classAttr}>`;
     }
 
     if (node.type === 'table') {
       return [
-        `${ind}<table>`,
+        `${ind}<table${classAttr}>`,
         `${ind}  <thead>`,
         `${ind}    <tr><th>Column 1</th><th>Column 2</th><th>Column 3</th></tr>`,
         `${ind}  </thead>`,
@@ -134,8 +139,8 @@ function exportHTML() {
       ].join('\n');
     }
 
-    if (node.type === 'button') return `${ind}<button>Click me</button>`;
-    if (node.type === 'logo')   return `${ind}<a href="#" class="logo">Logo</a>`;
+    if (node.type === 'button') return `${ind}<button${classAttr}>Click me</button>`;
+    if (node.type === 'logo')   return `${ind}<a href="#" class="logo${className ? ' ' + className : ''}">Logo</a>`;
     if (node.type === 'h1')     return `${ind}<h1${classAttr}>Page Heading</h1>`;
     if (node.type === 'h2')     return `${ind}<h2${classAttr}>Section Heading</h2>`;
     if (node.type === 'h3')     return `${ind}<h3${classAttr}>Sub-heading</h3>`;
@@ -145,7 +150,7 @@ function exportHTML() {
     }
 
     if (node.type === 'nav') {
-      return `${ind}<nav>\n${ind}  <a href="#">Home</a>\n${ind}  <a href="#">About</a>\n${ind}  <a href="#">Work</a>\n${ind}  <a href="#">Contact</a>\n${ind}</nav>`;
+      return `${ind}<nav${classAttr}>\n${ind}  <a href="#">Home</a>\n${ind}  <a href="#">About</a>\n${ind}  <a href="#">Work</a>\n${ind}  <a href="#">Contact</a>\n${ind}</nav>`;
     }
 
     if (node.type === 'p') {
@@ -202,7 +207,7 @@ function exportHTML() {
     }
 
     // --- Container nodes ---
-    const children = (node.children || []).map(c => nodeToHTML(c, depth + 1)).join('\n');
+    const children = (node.children || []).map(c => nodeToHTML(c, depth + 1, node)).join('\n');
     return `${ind}<${tag}${classAttr}>\n${children}\n${ind}</${tag}>`;
   }
 
@@ -264,6 +269,16 @@ ${bodyHTML}${validatorScript}
   document.getElementById('export-copy-btn').textContent = 'Copy';
   document.getElementById('export-copy-btn').classList.remove('copied');
   document.getElementById('export-modal').classList.add('open');
+}
+
+let exportPreviewUrl = null;
+
+// Open the exported page in a new tab, exactly as a browser renders the file.
+function previewExport() {
+  const code = document.getElementById('export-code').textContent;
+  if (exportPreviewUrl) URL.revokeObjectURL(exportPreviewUrl);
+  exportPreviewUrl = URL.createObjectURL(new Blob([code], { type: 'text/html' }));
+  window.open(exportPreviewUrl, '_blank');
 }
 
 function copyExport() {

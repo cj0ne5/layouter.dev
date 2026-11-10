@@ -40,6 +40,17 @@ const LABELS = {
   table: 'table',
 };
 
+// Image height / width, matching the aspect-ratio values in the exported CSS
+const IMG_ASPECT = { portrait: 4 / 3, square: 1, landscape: 3 / 4, banner: 3 / 8 };
+const IMG_ASPECT_CSS = { portrait: '3 / 4', square: '1', landscape: '4 / 3', banner: '8 / 3' };
+// Image widths as a fraction of the containing block (exported as width: N%)
+const IMG_INLINE_WIDTH = { icon: 0.1, sm: 0.3, md: 0.45, lg: 0.65 };
+const IMG_BLOCK_WIDTH  = { sm: 0.35, md: 0.65, lg: 1 };
+const IMG_ICON_H = 40;      // block icons export as height: 2.5rem
+const FLOAT_MARGIN = { side: 16, bottom: 8 }; // exported float margins (1rem / 0.5rem)
+const TEXT_MARGIN_BOTTOM = 8; // h1–h3 and p export with margin-bottom: 0.5rem
+const INLINE_GAP = 4; // the whitespace between inline-block elements in exported HTML
+
 const P_TEXT_H = { sm: 56, md: 112, lg: 196 };
 
 function getParagraphLoremWords(size) {

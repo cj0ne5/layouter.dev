@@ -20,6 +20,21 @@ see some pre-built pages, check out the "starter templates" dropdown at the top.
 ### Properties panel
 Click any element to edit its properties. Depending on the element type, you'll see selectors for grid/flex layouts, alignment, size, box model properties, etc.
 
+### CSS Grid (rows, columns and named areas)
+Set an element's layout to **grid** to get a 2-D grid editor in the properties panel:
+
+- **Cell editor** – type an area name into each cell (blank = `.`), repeat a name to span cells, and set row sizes (right) and column sizes (bottom). Use `+ row` / `+ col` to grow the grid.
+- **CSS box** – type or paste real CSS and it's applied live, e.g. the `grid` shorthand:
+  ```css
+  grid:
+    'head head' 100px
+    'menu main' 1fr
+    'foot foot' 200px
+    / 200px 1fr;
+  ```
+  Longhands (`grid-template-areas`, `grid-template-rows`, `grid-template-columns`, `gap`) work too. Mistakes such as a missing unit or a non-rectangular area are explained in plain language.
+- **Placing items** – drag an element onto an empty named area to give it `grid-area`, or pick the area in the child's properties. Elements without an area are auto-placed into the free cells, the way a browser does it.
+
 ### DOM tree view
 The browser parses HTML into the DOM. To help students learn how the visual page matches to the browser's concept of the DOM tree, there's a text representation of the tree to the left of the preview. You can select elements from either view.
 

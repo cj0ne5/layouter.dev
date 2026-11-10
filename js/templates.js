@@ -203,6 +203,27 @@ const TEMPLATES = [
           children: [{ type: 'p' }, { type: 'nav' }] }
       ]
     }
+  },
+
+  {
+    name: 'Grid areas (head / menu + main / foot)',
+    tree: {
+      type: 'page', viewport: 1280, width: 900,
+      children: [
+        {
+          type: 'div', layout: 'grid', gap: '0.5rem', padding: '0.5rem',
+          areas: ['head head', 'menu main', 'foot foot'],
+          rowTemplate: '100px 1fr 200px',
+          colTemplate: '200px 1fr',
+          children: [
+            { type: 'header', gridArea: 'head', layout: 'flex', align: 'space-between', padding: '1rem', children: [{ type: 'logo' }, { type: 'h1' }] },
+            { type: 'div', gridArea: 'menu', layout: 'block', padding: '1rem', children: [{ type: 'nav', menuStyle: 'dropdown' }] },
+            { type: 'main', gridArea: 'main', layout: 'block', padding: '1rem', children: [{ type: 'h2' }, { type: 'p', text: 'md' }, { type: 'p', text: 'sm' }] },
+            { type: 'footer', gridArea: 'foot', layout: 'block', padding: '1rem', children: [{ type: 'p' }] }
+          ]
+        }
+      ]
+    }
   }
 ];
 

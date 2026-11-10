@@ -327,6 +327,88 @@ body {
   line-height: 1.4;
 }
 
+#props.wide {
+  width: 290px;
+}
+
+#props .grid-cells {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+#props .grid-cells input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 4px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+  text-align: center;
+  background: #fafafa;
+}
+
+#props .grid-cells input.grid-cell {
+  height: 34px;
+  font-weight: 600;
+  color: #4a3f68;
+}
+
+#props .grid-cells input.grid-size {
+  border-style: dashed;
+  color: #555;
+  background: #fff;
+}
+
+#props .grid-cells input.bad,
+#props textarea.grid-css.bad {
+  border-color: #d55;
+  background: #fff5f5;
+}
+
+#props .grid-corner {
+  font-size: 10px;
+  color: #aaa;
+  align-self: center;
+  text-align: center;
+}
+
+#props .grid-editor-btns button {
+  font-family: monospace;
+}
+
+#props .grid-editor-hint {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+#props textarea.grid-css {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: #fafafa;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  resize: vertical;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+#props .grid-msg {
+  font-size: 11px;
+  color: #2a7a3a;
+  line-height: 1.4;
+  margin-top: 4px;
+  min-height: 0;
+}
+
+#props .grid-msg.error {
+  color: #c44;
+}
+
 #props .prop-hint {
   font-size: 11px;
   color: #aaa;
@@ -492,6 +574,19 @@ body {
 
 #export-copy-btn:hover { background: #2e7048; }
 #export-copy-btn.copied { background: #555; }
+
+#export-preview-btn {
+  padding: 5px 14px;
+  background: #2f5f9a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+#export-preview-btn:hover { background: #244b7a; }
 
 #export-close-btn {
   padding: 5px 12px;

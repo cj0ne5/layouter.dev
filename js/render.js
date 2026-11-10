@@ -1,3 +1,12 @@
+// Browsers paint floats above the backgrounds of later blocks, so floated images
+// (outside paragraphs, which draw their own) are collected and drawn last.
+const deferredFloats = [];
+
+function renderChild(child) {
+  if (isFloatedImg(child)) deferredFloats.push(child);
+  else renderTree(child);
+}
+
 function renderTree(node) {
   if (node.type === 'page') {
     const x = node._x, y = node._y, w = node._w, h = node._h;
@@ -16,7 +25,7 @@ function renderTree(node) {
     ctx.fillText('body', x + 6, y + 4);
     ctx.restore();
     hitBoxes.push({ node, x, y, w, h });
-    for (const child of (node.children || [])) renderTree(child);
+    for (const child of (node.children || [])) renderChild(child);
     return;
   }
 
@@ -65,6 +74,7 @@ function renderTree(node) {
       else drawSquigglyLines(node, x + 4, textStartY, w - 8, y + h - 4 - textStartY);
     }
     hitBoxes.push({ node, x, y, w, h });
+    drawGridAreaTag(node, x, y, w);
     return;
   }
 
@@ -261,22 +271,105 @@ function renderTree(node) {
   hitBoxes.push({ node, x, y, w, h });
 
   if (node.children) {
-    for (const child of node.children) renderTree(child);
+    for (const child of node.children) renderChild(child);
   }
+  drawGridAreaTag(node, x, y, w);
 }
 
 function drawGridLines(node, x, y, w, h) {
-  const pad = PADDING[node.padding] || 0;
   const gap = GAP[node.gap] ?? 16;
-  const innerX = node._innerX || (x + pad);
-  const colOffsets = node._colOffsets;
-  const colWidths = node._colWidths;
+  const ix = node._innerX, iy = node._innerY;
+  const cw = node._colWidths, co = node._colOffsets;
+  const rh = node._rowHeights, ro = node._rowOffsets;
+  const cells = node._gridCells;
+  const nCols = cw.length, nRows = rh.length;
+  const lineOpts = { roughness: 0.5, stroke: '#bbb', strokeWidth: 0.8, strokeLineDash: [5, 5] };
+  const sameArea = (r1, c1, r2, c2) => {
+    if (!cells || !cells[r1] || !cells[r2]) return false;
+    const a = cells[r1][c1], b = cells[r2][c2];
+    return a && a !== '.' && a === b;
+  };
 
-  for (let c = 1; c < colWidths.length; c++) {
-    const lx = innerX + colOffsets[c] - gap / 2;
-    rc.line(lx, y + pad, lx, y + h - pad,
-      { roughness: 0.5, stroke: '#bbb', strokeWidth: 0.8, strokeLineDash: [5, 5] });
+  // Tint named areas so their shapes read at a glance
+  if (cells) {
+    const names = Object.keys(node._gridAreas);
+    ctx.save();
+    for (const [name, a] of Object.entries(node._gridAreas)) {
+      ctx.fillStyle = areaColor(name, names);
+      ctx.globalAlpha = 0.55;
+      ctx.fillRect(a.x, a.y, a.w, a.h);
+    }
+    ctx.restore();
   }
+
+  // Column lines (skipped where both neighbours belong to the same area)
+  for (let c = 1; c < nCols; c++) {
+    const lx = ix + co[c] - gap / 2;
+    for (let r = 0; r < nRows; r++) {
+      if (sameArea(r, c - 1, r, c)) continue;
+      const y1 = iy + ro[r] - (r > 0 ? gap / 2 : 0);
+      const y2 = iy + ro[r] + rh[r] + (r < nRows - 1 ? gap / 2 : 0);
+      rc.line(lx, y1, lx, y2, lineOpts);
+    }
+  }
+  // Row lines
+  for (let r = 1; r < nRows; r++) {
+    const ly = iy + ro[r] - gap / 2;
+    for (let c = 0; c < nCols; c++) {
+      if (sameArea(r - 1, c, r, c)) continue;
+      const x1 = ix + co[c] - (c > 0 ? gap / 2 : 0);
+      const x2 = ix + co[c] + cw[c] + (c < nCols - 1 ? gap / 2 : 0);
+      rc.line(x1, ly, x2, ly, lineOpts);
+    }
+  }
+
+  // Area names (visible until something is placed in the area)
+  if (cells) {
+    ctx.save();
+    ctx.font = 'bold 15px monospace';
+    ctx.fillStyle = '#8a7fa8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const [name, a] of Object.entries(node._gridAreas)) {
+      ctx.fillText(`'${name}'`, a.x + a.w / 2, a.y + a.h / 2);
+    }
+    ctx.restore();
+  }
+
+  if (node._gridInvalid) {
+    ctx.save();
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#c44';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillText('⚠ invalid grid areas — ignored', x + w - 6, y + 5);
+    ctx.restore();
+  }
+}
+
+// Small tag in the top-right corner of elements placed into a named grid area
+function drawGridAreaTag(node, x, y, w) {
+  if (!node.gridArea) return;
+  const parent = findParent(pageTree, node);
+  if (!parent || parent.layout !== 'grid' || !parent._gridAreas) return;
+  const valid = node.gridArea in parent._gridAreas;
+  const text = `grid-area: ${node.gridArea}`;
+  ctx.save();
+  ctx.font = '11px monospace';
+  const tw = ctx.measureText(text).width + 10;
+  const tx = x + w - tw - 4, ty = y + 4;
+  const names = Object.keys(parent._gridAreas);
+  ctx.fillStyle = valid ? areaColor(node.gridArea, names) : '#fde2e2';
+  ctx.strokeStyle = valid ? '#8a7fa8' : '#c44';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(tx, ty, tw, 16, 4);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = valid ? '#4a3f68' : '#c44';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, tx + 5, ty + 8.5);
+  ctx.restore();
 }
 
 // Uneven line widths so left/center/right alignment is clearly visible
@@ -481,6 +574,25 @@ function drawDropIndicator() {
   const { parent, index } = dropIndicator;
   if (!parent || !parent._w) return;
 
+  if (dropIndicator.area && parent._gridAreas && parent._gridAreas[dropIndicator.area]) {
+    const a = parent._gridAreas[dropIndicator.area];
+    ctx.save();
+    ctx.fillStyle = 'rgba(51, 102, 204, 0.15)';
+    ctx.fillRect(a.x, a.y, a.w, a.h);
+    ctx.strokeStyle = '#3366cc';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(a.x, a.y, a.w, a.h);
+    ctx.setLineDash([]);
+    ctx.font = 'bold 13px monospace';
+    ctx.fillStyle = '#3366cc';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`grid-area: ${dropIndicator.area}`, a.x + a.w / 2, a.y + a.h - 6);
+    ctx.restore();
+    return;
+  }
+
   const children = parent.children || [];
   const pad = PADDING[parent.padding] || 0;
   const prev = index > 0 ? children[index - 1] : null;
@@ -571,7 +683,7 @@ function render() {
   const margin = Math.round((viewport - bodyW) / 2);
 
   layoutTree(pageTree, margin, 0, bodyW);
-  const totalH = Math.max(pageTree._h || 600, 600);
+  const totalH = Math.ceil(Math.max(pageTree._h || 600, floatOverflowBottom + 16, 600));
 
   if (canvas.width !== viewport || canvas.height !== totalH) {
     canvas.width = viewport;
@@ -600,7 +712,9 @@ function render() {
   hitBoxes.length = 0;
   layoutTree(pageTree, margin, 0, bodyW);
 
+  deferredFloats.length = 0;
   renderTree(pageTree);
+  for (const f of deferredFloats.splice(0)) renderTree(f);
 
   if (!pageTree.children || pageTree.children.length === 0) {
     drawWelcomeMessage(margin, bodyW, totalH);

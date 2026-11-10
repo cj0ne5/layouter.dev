@@ -25,7 +25,9 @@ function buildDomTree() {
     if (!children.length) return;
     const layout = node.layout || 'block';
 
-    if (layout === 'flex') {
+    // Flex and grid children sit side by side (or in DOM order ≠ visual order for
+    // grid areas), so give each child an equal slice of the parent's vertical band.
+    if (layout === 'flex' || layout === 'grid') {
       const cTop = canvasY + MIN_H_C;
       const cBottom = Math.max(
         bandBottom !== undefined ? bandBottom : (node._y || 0) + (node._h || 0),
@@ -34,25 +36,6 @@ function buildDomTree() {
       const slotH = (cBottom - cTop) / children.length;
       for (let i = 0; i < children.length; i++) {
         walk(children[i], depth + 1, cTop + i * slotH, cTop + (i + 1) * slotH);
-      }
-
-    } else if (layout === 'grid') {
-      const cols = node._colWidths ? node._colWidths.length : (node.columns || 2);
-      const n = children.length;
-      const rows = Math.ceil(n / cols);
-      const cTop = canvasY + MIN_H_C;
-      const cBottom = Math.max(
-        bandBottom !== undefined ? bandBottom : (node._y || 0) + (node._h || 0),
-        cTop + rows * MIN_H_C
-      );
-      const rowH = (cBottom - cTop) / rows;
-      for (let r = 0; r < rows; r++) {
-        const rowTop = cTop + r * rowH;
-        const colsInRow = Math.min(cols, n - r * cols);
-        const slotH = rowH / colsInRow;
-        for (let c = 0; c < colsInRow; c++) {
-          walk(children[r * cols + c], depth + 1, rowTop + c * slotH, rowTop + (c + 1) * slotH);
-        }
       }
 
     } else if (bandTop !== undefined) {
