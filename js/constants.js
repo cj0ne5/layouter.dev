@@ -65,3 +65,46 @@ function getParagraphLoremWords(size) {
   for (let i = 0; i < targetWords; i++) words.push(loremPool[i % loremPool.length]);
   return words;
 }
+
+// A paragraph's words: the student's own text if they typed some, otherwise lorem ipsum.
+function getParagraphWords(node) {
+  const custom = (node.content || '').trim();
+  return custom ? custom.split(/\s+/) : getParagraphLoremWords(node.text);
+}
+
+// Canvas text metrics for a paragraph (custom text is drawn at one fixed size)
+function paragraphMetrics(node) {
+  const fontPx = node.content ? 12 : ({ sm: 11, md: 12, lg: 13 }[node.text || 'sm'] || 12);
+  return {
+    fontPx,
+    charW: fontPx * 0.58,
+    lineH: fontPx + 3,
+    wordH: fontPx,
+    wordGap: Math.max(3, Math.round(fontPx * 0.35)),
+  };
+}
+
+// Greedy line breaking: returns [{ words: [{index, text, w}], width }]
+function wrapParagraphWords(words, usableW, m) {
+  const lines = [];
+  let curLine = [];
+  let curLineW = 0;
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const ww = Math.round(word.length * m.charW + 4);
+    const addW = curLine.length ? (m.wordGap + ww) : ww;
+    if (curLine.length && curLineW + addW > usableW) {
+      lines.push({ words: curLine, width: curLineW });
+      curLine = [];
+      curLineW = 0;
+    }
+    curLine.push({ index: i, text: word, w: ww });
+    curLineW += curLine.length === 1 ? ww : addW;
+  }
+  if (curLine.length) lines.push({ words: curLine, width: curLineW });
+  return lines;
+}
+
+function escapeHTML(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}

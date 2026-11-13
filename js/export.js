@@ -139,7 +139,7 @@ function exportHTML() {
       ].join('\n');
     }
 
-    if (node.type === 'button') return `${ind}<button${classAttr}>Click me</button>`;
+    if (node.type === 'button') return `${ind}<button${classAttr}>${escapeHTML(node.label || 'Click me')}</button>`;
     if (node.type === 'logo')   return `${ind}<a href="#" class="logo${className ? ' ' + className : ''}">Logo</a>`;
     if (node.type === 'h1')     return `${ind}<h1${classAttr}>Page Heading</h1>`;
     if (node.type === 'h2')     return `${ind}<h2${classAttr}>Section Heading</h2>`;
@@ -154,10 +154,10 @@ function exportHTML() {
     }
 
     if (node.type === 'p') {
-      const nParas = { sm: 1, md: 2, lg: 4 }[node.text || 'sm'];
+      const nParas = node.content ? 1 : ({ sm: 1, md: 2, lg: 4 }[node.text || 'sm'] || 1);
       const lorem = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.';
       const inlineChildren = (node.children || []).filter(c => INLINE_TYPES.includes(c.type));
-      const words = getParagraphLoremWords(node.text);
+      const words = getParagraphWords(node).map(escapeHTML);
       const openings = {};
       const closings = {};
 

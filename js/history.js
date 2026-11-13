@@ -96,3 +96,14 @@ window.addEventListener('popstate', e => {
   render();
   _historyReady = wasReady;
 });
+
+// Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z or Ctrl+Y = redo.
+// Skipped while typing so text fields keep their native undo.
+document.addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+  const t = e.target;
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  const key = e.key.toLowerCase();
+  if (key === 'z' && !e.shiftKey) { e.preventDefault(); history.back(); }
+  else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); history.forward(); }
+});

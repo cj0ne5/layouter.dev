@@ -378,7 +378,7 @@ function makeNode(type) {
   const defaults = {
     // Elements
     header:  { type: 'header',  layout: 'block', padding: '1rem', children: [] },
-    footer:  { type: 'footer',  layout: 'block', padding: '0.5rem', children: [{ type: 'p' }] },
+    footer:  { type: 'footer',  layout: 'block', padding: '0.5rem', children: [] },
     main:    { type: 'main',    layout: 'block', padding: '1rem', children: [] },
     section: { type: 'section', layout: 'block', padding: '2rem', children: [] },
     nav:     { type: 'nav' },

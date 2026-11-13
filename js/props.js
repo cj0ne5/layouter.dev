@@ -38,7 +38,7 @@ function updatePropsPanel() {
   if (INLINE_TYPES.includes(n.type)) {
     const rs = Math.min(n.startWord ?? 0, n.endWord ?? 0);
     const re = Math.max(n.startWord ?? 0, n.endWord ?? 0);
-    addHint(fields, `Wraps sample words ${rs + 1} to ${re + 1}. To change the wrapped text, clear this inline tag and make a new word selection on the paragraph.`);
+    addHint(fields, `Wraps words ${rs + 1} to ${re + 1} of the paragraph. To change which words, clear this inline tag and make a new word selection on the paragraph.`);
     if (n.type === 'a') {
       addTextInput(fields, 'Href', n.href || '#', v => {
         n.href = v || '#';
@@ -68,7 +68,7 @@ function updatePropsPanel() {
 
   // Flex align
   if (n.layout === 'flex') {
-    addBtnGroup(fields, 'Align', ['start', 'center', 'end', 'space-between'],
+    addBtnGroup(fields, 'Align', ['start', 'center', 'end', 'space-between', 'space-around'],
       n.align || 'start',
       v => { n.align = v; render(); });
   }
@@ -82,10 +82,20 @@ function updatePropsPanel() {
 
   // Text size (p only)
   if (n.type === 'p') {
-    addBtnGroup(fields, 'Text', ['sm', 'md', 'lg'],
-      n.text || 'sm',
-      v => { n.text = v; render(); });
+    addParagraphTextBox(fields, n);
+    if (!n.content) {
+      addBtnGroup(fields, 'Length', ['sm', 'md', 'lg'],
+        n.text || 'sm',
+        v => { n.text = v; render(); });
+    }
     addParagraphAnnotator(fields, n);
+  }
+
+  if (n.type === 'button') {
+    addTextInput(fields, 'Label', n.label || 'Click me', v => {
+      if (v && v !== 'Click me') n.label = v; else delete n.label;
+      render();
+    });
   }
 
   // Text alignment (p and headings)
@@ -98,7 +108,7 @@ function updatePropsPanel() {
   // Padding
   if (n.type !== 'img' && n.type !== 'p' && n.type !== 'h1' && n.type !== 'h2' && n.type !== 'h3') {
     addBtnGroup(fields, 'Padding', ['0', '0.5rem', '1rem', '2rem'],
-      n.padding || '1rem',
+      n.padding || (n.type === 'button' ? '0.5rem' : '1rem'),
       v => { n.padding = v; render(); });
   }
 
@@ -236,6 +246,48 @@ function clearAllInlineInParagraph(paragraph) {
   selectedNode = paragraph;
   render();
   updatePropsPanel();
+}
+
+// Free-text box for a paragraph. Blank = lorem ipsum placeholder text.
+function addParagraphTextBox(parent, n) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+  group.innerHTML = '<label>Text</label>';
+  const box = document.createElement('textarea');
+  box.rows = 3;
+  box.placeholder = 'Type your own words, or leave blank for lorem ipsum';
+  box.value = n.content || '';
+  box.style.cssText = 'width:100%; box-sizing:border-box; font:inherit; font-size:12px; padding:6px; border:1px solid #ccc; border-radius:5px; resize:vertical;';
+  let saved = false; // one undo step per editing session
+  box.addEventListener('focus', () => { saved = false; });
+  box.addEventListener('input', () => {
+    if (!saved) { pushHistoryState(); saved = true; }
+    const text = box.value.trim();
+    if (text) n.content = text; else delete n.content;
+    syncInlineTagsToWords(n);
+    if (paragraphSelection && paragraphSelection.paragraph === n) paragraphSelection = null;
+    render();
+  });
+  // Refresh the panel once editing finishes (e.g. show/hide the Length buttons)
+  box.addEventListener('change', () => updatePropsPanel());
+  group.appendChild(box);
+  parent.appendChild(group);
+}
+
+// After the words change, drop inline tags that fall off the end and relabel the rest.
+function syncInlineTagsToWords(paragraph) {
+  if (!paragraph.children) return;
+  const words = getParagraphWords(paragraph);
+  paragraph.children = paragraph.children.filter(child => {
+    if (!INLINE_TYPES.includes(child.type)) return true;
+    const start = Math.min(child.startWord ?? 0, child.endWord ?? 0);
+    const end = Math.min(Math.max(child.startWord ?? 0, child.endWord ?? 0), words.length - 1);
+    if (start >= words.length) return false;
+    child.startWord = start;
+    child.endWord = end;
+    child.text = words.slice(start, end + 1).join(' ').replace(/[.,]$/, '');
+    return true;
+  });
 }
 
 function addParagraphAnnotator(parent, paragraph) {

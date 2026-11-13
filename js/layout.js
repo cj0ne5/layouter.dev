@@ -18,7 +18,13 @@ function layoutTree(node, x, y, w) {
 
   // p — height from text size; float img alongside or block img stacked above text
   if (node.type === 'p') {
-    const textH = P_TEXT_H[node.text || 'sm'];
+    const metrics = paragraphMetrics(node);
+    // Lorem paragraphs have a fixed height per size; custom text grows to fit its lines.
+    const textHeightFor = textW => {
+      if (!node.content) return P_TEXT_H[node.text || 'sm'];
+      const n = wrapParagraphWords(getParagraphWords(node), Math.max(12, textW - 4), metrics).length;
+      return 10 + Math.max(0, n - 1) * metrics.lineH + metrics.wordH;
+    };
     const children = node.children || [];
     for (const child of children) child._floated = false;
     const inlineChildren = children.filter(c => INLINE_TYPES.includes(c.type));
@@ -30,35 +36,14 @@ function layoutTree(node, x, y, w) {
     function layoutInlineFragments(textX, textW, textTop, textHeight) {
       if (textW < 40 || textHeight < 12) return;
 
-      const words = getParagraphLoremWords(node.text);
-      const wordSize = node.text || 'sm';
+      const words = getParagraphWords(node);
       const textAlign = node.align || 'left';
-      const fontPx = { sm: 11, md: 12, lg: 13 }[wordSize] || 12;
-      const charW = fontPx * 0.58;
-      const lineH = fontPx + 3;
-      const wordH = fontPx;
-      const wordGap = Math.max(3, Math.round(fontPx * 0.35));
+      const { lineH, wordH, wordGap } = metrics;
       const maxBottom = textTop + textHeight - 2;
       const usableW = Math.max(12, textW - 4);
 
       // First, break words into lines based on available width.
-      const lines = [];
-      let curLine = [];
-      let curLineW = 0;
-
-      for (let i = 0; i < words.length; i++) {
-        const word = words[i];
-        const ww = Math.round(word.length * charW + 4);
-        const addW = curLine.length ? (wordGap + ww) : ww;
-        if (curLine.length && curLineW + addW > usableW) {
-          lines.push({ words: curLine, width: curLineW });
-          curLine = [];
-          curLineW = 0;
-        }
-        curLine.push({ index: i, text: word, w: ww });
-        curLineW += curLine.length === 1 ? ww : addW;
-      }
-      if (curLine.length) lines.push({ words: curLine, width: curLineW });
+      const lines = wrapParagraphWords(words, usableW, metrics);
 
       // Then place each line according to paragraph alignment.
       let wy = textTop + 4;
@@ -149,10 +134,11 @@ function layoutTree(node, x, y, w) {
       floatImg._x = effectiveFloat === 'left' ? innerX : innerX + innerW - imgW;
       floatImg._floated = true;
       floatImg._effectiveFloat = effectiveFloat;
-      node._h = Math.max(imgH, textH) + pad * 2;
       const gap = FLOAT_MARGIN.side;
       const textX = effectiveFloat === 'left' ? floatImg._x + floatImg._w + gap : innerX;
       const textRight = effectiveFloat === 'left' ? innerX + innerW : floatImg._x - gap;
+      const textH = textHeightFor(Math.max(0, textRight - textX));
+      node._h = Math.max(imgH, textH) + pad * 2;
       layoutInlineFragments(textX, Math.max(0, textRight - textX), y + pad, textH);
     } else {
       // Stack legacy non-inline children above the text area.
@@ -165,6 +151,7 @@ function layoutTree(node, x, y, w) {
         }
         childH = cy - (y + pad);
       }
+      const textH = textHeightFor(innerW);
       node._h = childH + textH + pad * 2;
       layoutInlineFragments(innerX, innerW, y + pad + childH, textH);
     }
@@ -199,7 +186,14 @@ function layoutTree(node, x, y, w) {
     return;
   }
 
-  const leafH = { logo: 36, button: 36, h1: 36, h2: 28, h3: 22, input: 36, table: 140 };
+  // Button height grows with its padding (default 0.5rem ≈ the exported 0.5rem 1.5rem)
+  if (node.type === 'button') {
+    const bp = node.padding !== undefined ? (PADDING[node.padding] ?? 8) : 8;
+    node._h = 28 + bp * 2; // ~20px label + padding + the 4px drawn inset top/bottom
+    return;
+  }
+
+  const leafH = { logo: 36, h1: 36, h2: 28, h3: 22, input: 36, table: 140 };
 
   if (leafH[node.type] !== undefined) {
     node._h = leafH[node.type];
@@ -246,10 +240,12 @@ function layoutTree(node, x, y, w) {
       });
       const totalSlotW = slotW.reduce((s, w) => s + w, 0);
       const freeW = Math.max(0, innerW - totalSlotW - totalGapW);
-      const extraPerGap = (align === 'space-between' && n > 1) ? freeW / (n - 1) : 0;
+      const extraPerGap = (align === 'space-between' && n > 1) ? freeW / (n - 1)
+                        : align === 'space-around' ? freeW / n : 0;
 
       let startX;
       if (align === 'space-between' && n > 1) startX = innerX;
+      else if (align === 'space-around') startX = innerX + freeW / (2 * n);
       else if (align === 'end')    startX = innerX + freeW;
       else if (align === 'center') startX = innerX + freeW / 2;
       else                         startX = innerX;

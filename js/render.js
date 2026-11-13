@@ -83,7 +83,7 @@ function renderTree(node) {
     rc.line(x, y, x + w, y + h, { roughness: 0.8, stroke: '#888', strokeWidth: 1 });
     rc.line(x + w, y, x, y + h, { roughness: 0.8, stroke: '#888', strokeWidth: 1 });
   } else if (node.type === 'button') {
-    rc.rectangle(x + w * 0.2, y + 8, w * 0.6, h - 16, { ...opts, fill: '#c8deff', strokeWidth: 1.5 });
+    rc.rectangle(x + w * 0.2, y + 4, w * 0.6, h - 8, { ...opts, fill: '#c8deff', strokeWidth: 1.5 });
     drawLabel(node, x, y, w, h);
   } else if (node.type === 'input') {
     ctx.save();
@@ -480,7 +480,7 @@ function drawParagraphWords(paragraphNode) {
 }
 
 function drawLabel(node, x, y, w, h) {
-  const label = LABELS[node.type] || node.type;
+  const label = (node.type === 'button' && node.label) ? node.label : (LABELS[node.type] || node.type);
   ctx.save();
   ctx.font = FONT;
   ctx.fillStyle = node === selectedNode ? '#2244aa' : '#444';
